@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import AddProductModal from "@/components/AddProductModal";
+import ProductModal from "@/components/AddProductModal";
 import { CATEGORIES, type Category, type Product } from "@/types/product";
 
 type Me = {
@@ -14,6 +14,9 @@ type Me = {
 };
 
 type Status = "loading" | "ready" | "denied" | "error";
+
+// null = closed, {} = add a product, { product } = edit that product
+type ModalState = { product?: Product } | null;
 
 const LOW_STOCK = 5;
 const CURRENCY = "EGP"; // change to match your prices
@@ -73,7 +76,7 @@ export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<Category | "all">("all");
-  const [showAdd, setShowAdd] = useState(false);
+  const [modal, setModal] = useState<ModalState>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
 
@@ -123,8 +126,13 @@ export default function AdminProductsPage() {
   const outOfStock = products.filter((p) => p.stock === 0).length;
   const lowStock = products.filter((p) => p.stock > 0 && p.stock <= LOW_STOCK).length;
 
-  const handleCreated = (product: Product) => {
-    setProducts((prev) => [product, ...prev]);
+  // Called after add or edit: replace the product if it exists, otherwise put it first
+  const handleSaved = (saved: Product) => {
+    setProducts((prev) =>
+      prev.some((p) => p._id === saved._id)
+        ? prev.map((p) => (p._id === saved._id ? saved : p))
+        : [saved, ...prev]
+    );
   };
 
   const handleDelete = async (product: Product) => {
@@ -182,7 +190,7 @@ export default function AdminProductsPage() {
           <p className="text-sm text-gray-500">Manage your store&apos;s catalogue</p>
         </div>
         <button
-          onClick={() => setShowAdd(true)}
+          onClick={() => setModal({})}
           className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto"
         >
           + Add product
@@ -265,13 +273,21 @@ export default function AdminProductsPage() {
                 <StatusBadge active={p.isActive} />
               </div>
 
-              <button
-                onClick={() => handleDelete(p)}
-                disabled={deletingId === p._id}
-                className="mt-3 w-full rounded-lg border border-red-200 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {deletingId === p._id ? "Deleting..." : "Delete"}
-              </button>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setModal({ product: p })}
+                  className="rounded-lg border border-gray-300 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(p)}
+                  disabled={deletingId === p._id}
+                  className="rounded-lg border border-red-200 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {deletingId === p._id ? "Deleting..." : "Delete"}
+                </button>
+              </div>
             </li>
           ))}
         </ul>
@@ -312,7 +328,13 @@ export default function AdminProductsPage() {
                   <td className="px-4 py-3">
                     <StatusBadge active={p.isActive} />
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="whitespace-nowrap px-4 py-3 text-right">
+                    <button
+                      onClick={() => setModal({ product: p })}
+                      className="rounded-md px-3 py-1.5 text-sm font-medium text-blue-600 transition hover:bg-blue-50"
+                    >
+                      Edit
+                    </button>
                     <button
                       onClick={() => handleDelete(p)}
                       disabled={deletingId === p._id}
@@ -332,9 +354,14 @@ export default function AdminProductsPage() {
         Showing {filtered.length} of {products.length} products
       </p>
 
-      {/* Add product popup */}
-      {showAdd && (
-        <AddProductModal onClose={() => setShowAdd(false)} onCreated={handleCreated} />
+      {/* Add / edit popup. The key resets the form when switching products */}
+      {modal && (
+        <ProductModal
+          key={modal.product?._id ?? "new"}
+          product={modal.product}
+          onClose={() => setModal(null)}
+          onSaved={handleSaved}
+        />
       )}
     </main>
   );

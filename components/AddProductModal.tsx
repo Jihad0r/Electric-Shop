@@ -10,8 +10,9 @@ import {
 import { CATEGORIES, type Category, type Product } from "@/types/product";
 
 type Props = {
+  product?: Product; // when given, the popup edits this product
   onClose: () => void;
-  onCreated: (product: Product) => void;
+  onSaved: (product: Product) => void;
 };
 
 type FormState = {
@@ -31,27 +32,32 @@ const inputClass =
   "w-full rounded-lg border border-gray-300 px-3 py-2 text-base text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 sm:text-sm";
 const labelClass = "mb-1 block text-sm font-medium text-gray-700";
 
-export default function AddProductModal({ onClose, onCreated }: Props) {
+export default function ProductModal({ product, onClose, onSaved }: Props) {
+  const isEdit = Boolean(product);
+
   const [form, setForm] = useState<FormState>({
-    name: "",
-    description: "",
-    price: "",
-    category: "phones",
-    stock: "0",
-    isActive: true,
+    name: product?.name ?? "",
+    description: product?.description ?? "",
+    price: product ? String(product.price) : "",
+    category: product?.category ?? "phones",
+    stock: product ? String(product.stock) : "0",
+    isActive: product?.isActive ?? true,
   });
   const [image, setImage] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
 
-  // Preview URL for the chosen image, released when it changes or the popup closes
+  // Preview of a newly chosen image, released when it changes or the popup closes
   const preview = useMemo(() => (image ? URL.createObjectURL(image) : ""), [image]);
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview);
     };
   }, [preview]);
+
+  const currentImage = product?.image?.url ?? "";
+  const shownImage = preview || currentImage;
 
   // Focus the first field when the popup opens
   useEffect(() => {
@@ -117,7 +123,8 @@ export default function AddProductModal({ onClose, onCreated }: Props) {
     if (!Number.isInteger(stock) || stock < 0) {
       return setError("Stock must be a whole number, 0 or more");
     }
-    if (!image) return setError("Please choose a product image");
+    // A new product needs an image; when editing, the current one is kept
+    if (!isEdit && !image) return setError("Please choose a product image");
 
     const data = new FormData();
     data.append("name", form.name.trim());
@@ -126,20 +133,23 @@ export default function AddProductModal({ onClose, onCreated }: Props) {
     data.append("category", form.category);
     data.append("stock", String(stock));
     data.append("isActive", String(form.isActive));
-    data.append("image", image);
+    if (image) data.append("image", image);
 
     setSubmitting(true);
     try {
       // Don't set Content-Type yourself; the browser adds the multipart boundary
-      const res = await fetch("/api/products", { method: "POST", body: data });
+      const res = await fetch(isEdit ? `/api/products/${product!._id}` : "/api/products", {
+        method: isEdit ? "PUT" : "POST",
+        body: data,
+      });
       const json = await res.json();
 
       if (!res.ok) {
-        setError(json.error || "Could not add the product");
+        setError(json.error || "Could not save the product");
         return;
       }
 
-      onCreated(json as Product);
+      onSaved(json as Product);
       onClose();
     } catch {
       setError("Network error. Please try again.");
@@ -160,13 +170,13 @@ export default function AddProductModal({ onClose, onCreated }: Props) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="add-product-title"
+        aria-labelledby="product-modal-title"
         className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-4 shadow-xl sm:max-h-[90dvh] sm:rounded-2xl sm:p-6"
       >
         <div className="flex items-start justify-between">
           <div>
-            <h2 id="add-product-title" className="text-xl font-bold text-gray-900">
-              Add product
+            <h2 id="product-modal-title" className="text-xl font-bold text-gray-900">
+              {isEdit ? "Edit product" : "Add product"}
             </h2>
             <p className="mt-0.5 text-sm text-gray-500">Fields marked * are required</p>
           </div>
@@ -274,7 +284,7 @@ export default function AddProductModal({ onClose, onCreated }: Props) {
 
           <div>
             <label htmlFor="image" className={labelClass}>
-              Image *
+              Image {isEdit ? "" : "*"}
             </label>
             <input
               id="image"
@@ -283,14 +293,25 @@ export default function AddProductModal({ onClose, onCreated }: Props) {
               onChange={handleImage}
               className="block w-full text-sm text-gray-600 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100"
             />
-            <p className="mt-1 text-xs text-gray-400">JPG, PNG or WEBP, up to 4MB</p>
-            {preview && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={preview}
-                alt="Preview"
-                className="mt-3 h-40 w-full rounded-lg bg-gray-100 object-contain"
-              />
+            <p className="mt-1 text-xs text-gray-400">
+              {isEdit
+                ? "Leave empty to keep the current image. JPG, PNG or WEBP, up to 4MB"
+                : "JPG, PNG or WEBP, up to 4MB"}
+            </p>
+            {shownImage && (
+              <div className="mt-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={shownImage}
+                  alt={preview ? "New image preview" : "Current image"}
+                  className="h-40 w-full rounded-lg bg-gray-100 object-contain"
+                />
+                {isEdit && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    {preview ? "New image (replaces the current one when you save)" : "Current image"}
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
@@ -325,7 +346,7 @@ export default function AddProductModal({ onClose, onCreated }: Props) {
               disabled={submitting}
               className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {submitting ? "Uploading..." : "Add product"}
+              {submitting ? "Saving..." : isEdit ? "Save changes" : "Add product"}
             </button>
           </div>
         </form>
