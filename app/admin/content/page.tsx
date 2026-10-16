@@ -7,6 +7,7 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { CURRENCY } from "@/lib/store";
 import { offerState, type Offer, type OfferState } from "@/types/offer";
 import type { Product } from "@/types/product";
+import HeroSlidesManager from "@/components/HeroSlidesManager";
 
 type Status = "loading" | "ready" | "denied" | "error";
 type ModalState = { offer?: Offer } | null; // {} = new offer
@@ -155,7 +156,9 @@ export default function AdminContentPage() {
           + New offer
         </button>
       </div>
+      <HeroSlidesManager />
 
+      <h2 className="mt-10 text-lg font-bold text-gray-900">Offers</h2>
       {actionError && (
         <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
           {actionError}

@@ -10,10 +10,11 @@ type Me = { id: string; name: string; email: string; role: "user" | "admin" };
 
 const LINKS = [
   { href: "/", label: "Home" },
-  { href: "/products?category=laptops", label: CATEGORY_META.laptops.label },
-  { href: "/products?category=phones", label: CATEGORY_META.phones.label },
-  { href: "/products?category=tablets", label: CATEGORY_META.tablets.label },
-  { href: "/products?category=accessories", label: CATEGORY_META.accessories.label },
+  { href: "/laptops", label: CATEGORY_META.laptops.label },
+  { href: "/phones", label: CATEGORY_META.phones.label },
+  { href: "/tablets", label: CATEGORY_META.tablets.label },
+  { href: "/accessories", label: CATEGORY_META.accessories.label },
+  { href: "/others", label: CATEGORY_META.others.label },
 ];
 
 const iconButton =
@@ -220,7 +221,7 @@ export default function StoreNav() {
       <nav aria-label="Main" className="border-t border-white/5">
         <ul className="mx-auto flex max-w-7xl gap-1 overflow-x-auto whitespace-nowrap px-4 py-2 sm:px-6 lg:px-8">
           {LINKS.map((link) => {
-            const active = link.href === "/" && pathname === "/";
+            const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
             return (
               <li key={link.href}>
                 <Link

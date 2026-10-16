@@ -5,7 +5,7 @@ import { CATEGORIES } from "@/types/product";
 
 export default function StoreFooter() {
   return (
-    <footer className="mt-12 border-t border-white/10 bg-ink-900/60">
+    <footer className="mt-12 border-t border-white/10 bg-black">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:grid-cols-3 sm:px-6 lg:px-8">
         <div>
           <div className="flex items-center gap-2">
@@ -27,7 +27,7 @@ export default function StoreFooter() {
             </li>
             {CATEGORIES.map((c) => (
               <li key={c}>
-                <Link href={`/products?category=${c}`} className="transition hover:text-white">
+                <Link href={`/${c}`} className="transition hover:text-white">
                   {CATEGORY_META[c].label}
                 </Link>
               </li>

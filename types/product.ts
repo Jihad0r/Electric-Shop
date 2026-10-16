@@ -38,3 +38,30 @@ export type ProductSummary = {
   image?: string;
   hasOptions: boolean;
 };
+export function isCategory(value: string): value is Category {
+  return (CATEGORIES as readonly string[]).includes(value);
+}
+
+export type ProductDetailVariant = {
+  _id: string;
+  selections: VariantSelection[];
+  stock: number;
+  price: number; // price after any active offer
+  originalPrice?: number;
+  discountPercent?: number;
+};
+
+// Everything the product page needs, with offers already applied
+export type ProductDetail = {
+  _id: string;
+  name: string;
+  description: string;
+  category: Category;
+  image?: string;
+  options: ProductOption[];
+  variants: ProductDetailVariant[];
+  price: number; // used when the product has no options
+  originalPrice?: number;
+  discountPercent?: number;
+  stock: number;
+};

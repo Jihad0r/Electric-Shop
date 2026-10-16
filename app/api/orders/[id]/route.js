@@ -1,6 +1,6 @@
 
 import { connectDB } from "@/lib/mongoose";
-import Order from "@/models/Orders";
+import Order from "@/models/Order";
 import Product from "@/models/Product";
 import { getAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";

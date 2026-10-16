@@ -1,5 +1,5 @@
 import { connectDB } from "@/lib/mongoose";
-import User from "@/models/Users";
+import User from "@/models/User";
 import { uploadImage, deleteImage, validateImage } from "@/lib/cloudinary";
 import { getAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
