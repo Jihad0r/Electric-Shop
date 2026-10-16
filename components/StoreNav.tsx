@@ -1,33 +1,99 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import Logo from "@/components/Logo";
 import LogoutButton from "@/components/LogoutButton";
 import { CATEGORY_META, STORE_NAME } from "@/lib/store";
-import { CATEGORIES } from "@/types/product";
 
 type Me = { id: string; name: string; email: string; role: "user" | "admin" };
 
-const MAIN_LINKS = [
-  { href: "/", label: "Home", exact: true },
-  { href: "/products", label: "Shop", exact: false },
+const LINKS = [
+  { href: "/", label: "Home" },
+  { href: "/products?category=laptops", label: CATEGORY_META.laptops.label },
+  { href: "/products?category=phones", label: CATEGORY_META.phones.label },
+  { href: "/products?category=tablets", label: CATEGORY_META.tablets.label },
+  { href: "/products?category=accessories", label: CATEGORY_META.accessories.label },
 ];
 
-const CATEGORY_LINKS = CATEGORIES.filter((c) => c !== "others").map((c) => ({
-  href: `/products?category=${c}`,
-  label: CATEGORY_META[c].label,
-}));
+const iconButton =
+  "flex h-9 w-9 items-center justify-center rounded-lg text-slate-200 transition hover:bg-white/10 hover:text-white";
 
-const logoutSmall =
-  "rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60";
-const logoutFull =
-  "w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60";
+function Svg({ children }: { children: ReactNode }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  );
+}
+
+const SearchIcon = () => (
+  <Svg>
+    <circle cx="11" cy="11" r="7" />
+    <path d="M20 20l-3.5-3.5" />
+  </Svg>
+);
+const UserIcon = () => (
+  <Svg>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21a8 8 0 0 1 16 0" />
+  </Svg>
+);
+const CartIcon = () => (
+  <Svg>
+    <circle cx="9" cy="20" r="1.5" />
+    <circle cx="18" cy="20" r="1.5" />
+    <path d="M3 4h2.5l2.2 11h10.6L21 8H6.2" />
+  </Svg>
+);
+
+function SearchBox({ className = "" }: { className?: string }) {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const q = query.trim();
+    if (q) router.push(`/products?search=${encodeURIComponent(q)}`);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} role="search" className={`relative ${className}`}>
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search for products..."
+        aria-label="Search for products"
+        className="w-full rounded-lg border border-white/10 bg-ink-800/70 py-2 pl-3 pr-10 text-base text-slate-100 placeholder-slate-500 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 sm:text-sm"
+      />
+      <button
+        type="submit"
+        aria-label="Search"
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-slate-400 hover:text-white"
+      >
+        <SearchIcon />
+      </button>
+    </form>
+  );
+}
 
 export default function StoreNav() {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
   // undefined = still checking, null = logged out
   const [user, setUser] = useState<Me | null | undefined>(undefined);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,192 +113,132 @@ export default function StoreNav() {
     };
   }, []);
 
-  // Close the mobile menu with the Escape key
+  // Close the account menu on outside click or Escape
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+    const onMouseDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onMouseDown);
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, []);
 
-  const isActive = (link: (typeof MAIN_LINKS)[number]) =>
-    link.exact ? pathname === link.href : pathname.startsWith(link.href);
-
-  const linkClass = (active: boolean) =>
-    `rounded-lg px-3 py-2 text-sm font-medium transition ${
-      active ? "bg-blue-50 text-blue-700" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-    }`;
-
-  const handleLoggedOut = () => {
-    setUser(null);
-    setOpen(false);
-  };
+  const menuItem =
+    "block rounded-lg px-3 py-2 text-sm text-slate-200 transition hover:bg-white/10 hover:text-white";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/90 backdrop-blur">
-      <nav
-        aria-label="Main"
-        className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8"
-      >
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-ink-950/90 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:gap-6 sm:px-6 lg:px-8">
         {/* Brand */}
-        <Link href="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-base font-bold text-white">
-            {STORE_NAME.charAt(0)}
-          </span>
-          <span className="text-lg font-bold text-gray-900">{STORE_NAME}</span>
+        <Link href="/" className="flex shrink-0 items-center gap-2">
+          <Logo className="h-7 w-7 text-brand-400" />
+          <span className="text-lg font-bold text-white">{STORE_NAME}</span>
         </Link>
 
-        {/* Desktop links */}
-        <ul className="hidden items-center gap-1 md:flex">
-          {MAIN_LINKS.map((link) => (
-            <li key={link.href}>
-              <Link
-                href={link.href}
-                aria-current={isActive(link) ? "page" : undefined}
-                className={linkClass(isActive(link))}
-              >
-                {link.label}
-              </Link>
-            </li>
-          ))}
-          {CATEGORY_LINKS.map((link) => (
-            <li key={link.href} className="hidden lg:block">
-              <Link href={link.href} className={linkClass(false)}>
-                {link.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        {/* Search (tablet and up) */}
+        <SearchBox className="hidden flex-1 md:mx-auto md:block md:max-w-xl" />
 
-        {/* Desktop account area */}
-        <div className="hidden items-center gap-2 md:flex">
+        {/* Account and cart */}
+        <div className="ml-auto flex items-center gap-1 md:ml-0">
           {user === undefined ? (
-            <div className="h-9 w-32 animate-pulse rounded-lg bg-gray-100" />
+            <div className="h-9 w-9 animate-pulse rounded-lg bg-white/10" />
           ) : user ? (
-            <>
-              <span className="hidden max-w-[10rem] truncate text-sm text-gray-600 lg:inline">
-                Hi, {user.name.split(" ")[0]}
-              </span>
-              {user.role === "admin" && (
-                <Link
-                  href="/admin/products"
-                  className="rounded-lg px-3 py-1.5 text-sm font-medium text-blue-600 transition hover:bg-blue-50"
-                >
-                  Dashboard
-                </Link>
+            <div ref={menuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((o) => !o)}
+                aria-label="Account menu"
+                aria-expanded={menuOpen}
+                className={iconButton}
+              >
+                <UserIcon />
+              </button>
+
+              {menuOpen && (
+                <div className="absolute right-0 mt-2 w-56 rounded-xl bg-ink-800 p-2 shadow-xl ring-1 ring-white/10">
+                  <div className="border-b border-white/10 px-3 pb-2 pt-1">
+                    <p className="truncate text-sm font-medium text-white">{user.name}</p>
+                    <p className="truncate text-xs text-slate-400">{user.email}</p>
+                  </div>
+                  <div className="pt-2">
+                    <Link
+                      href="/account/orders"
+                      onClick={() => setMenuOpen(false)}
+                      className={menuItem}
+                    >
+                      My orders
+                    </Link>
+                    {user.role === "admin" && (
+                      <Link href="/admin" onClick={() => setMenuOpen(false)} className={menuItem}>
+                        Admin dashboard
+                      </Link>
+                    )}
+                    <LogoutButton
+                      className={`w-full text-left ${menuItem}`}
+                      redirectTo="/"
+                      onLoggedOut={() => {
+                        setUser(null);
+                        setMenuOpen(false);
+                      }}
+                    />
+                  </div>
+                </div>
               )}
-              <LogoutButton className={logoutSmall} redirectTo="/" onLoggedOut={handleLoggedOut} />
-            </>
+            </div>
           ) : (
             <>
-              <Link
-                href="/login"
-                className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
-              >
-                Log in
+              <Link href="/login" aria-label="Log in" className={iconButton}>
+                <UserIcon />
               </Link>
               <Link
                 href="/signup"
-                className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-blue-700"
+                className="hidden rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-brand-700 sm:block"
               >
                 Sign up
               </Link>
             </>
           )}
-        </div>
 
-        {/* Mobile menu button */}
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-label={open ? "Close menu" : "Open menu"}
-          aria-expanded={open}
-          aria-controls="store-mobile-menu"
-          className="rounded-lg p-2 text-gray-700 transition hover:bg-gray-100 md:hidden"
-        >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            aria-hidden="true"
-          >
-            {open ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
-          </svg>
-        </button>
+          <Link href="/cart" aria-label="Cart" className={iconButton}>
+            <CartIcon />
+          </Link>
+        </div>
+      </div>
+
+      {/* Search (phones) */}
+      <div className="px-4 pb-3 md:hidden">
+        <SearchBox />
+      </div>
+
+      {/* Category links: a swipeable row on phones */}
+      <nav aria-label="Main" className="border-t border-white/5">
+        <ul className="mx-auto flex max-w-7xl gap-1 overflow-x-auto whitespace-nowrap px-4 py-2 sm:px-6 lg:px-8">
+          {LINKS.map((link) => {
+            const active = link.href === "/" && pathname === "/";
+            return (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  aria-current={active ? "page" : undefined}
+                  className={`block rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                    active
+                      ? "bg-white/10 text-white"
+                      : "text-slate-300 hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </nav>
-
-      {/* Mobile menu */}
-      {open && (
-        <div id="store-mobile-menu" className="border-t border-gray-200 bg-white md:hidden">
-          <ul className="space-y-1 px-4 py-3 sm:px-6">
-            {MAIN_LINKS.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  aria-current={isActive(link) ? "page" : undefined}
-                  className={`block ${linkClass(isActive(link))}`}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-            {CATEGORY_LINKS.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  className={`block ${linkClass(false)}`}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-
-            <li className="space-y-2 border-t border-gray-100 pt-3">
-              {user === undefined ? (
-                <div className="h-10 animate-pulse rounded-lg bg-gray-100" />
-              ) : user ? (
-                <>
-                  <p className="px-3 text-sm text-gray-600">Signed in as {user.name}</p>
-                  {user.role === "admin" && (
-                    <Link
-                      href="/admin/products"
-                      onClick={() => setOpen(false)}
-                      className="block rounded-lg px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
-                    >
-                      Dashboard
-                    </Link>
-                  )}
-                  <LogoutButton className={logoutFull} redirectTo="/" onLoggedOut={handleLoggedOut} />
-                </>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  <Link
-                    href="/login"
-                    onClick={() => setOpen(false)}
-                    className="rounded-lg border border-gray-300 py-2.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    Log in
-                  </Link>
-                  <Link
-                    href="/signup"
-                    onClick={() => setOpen(false)}
-                    className="rounded-lg bg-blue-600 py-2.5 text-center text-sm font-medium text-white hover:bg-blue-700"
-                  >
-                    Sign up
-                  </Link>
-                </div>
-              )}
-            </li>
-          </ul>
-        </div>
-      )}
     </header>
   );
 }

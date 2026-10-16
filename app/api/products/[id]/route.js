@@ -4,9 +4,10 @@ import { uploadImage, deleteImage, validateImage } from "@/lib/cloudinary";
 import { getAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-
+  import { readVariants } from "@/lib/variants";
 // PUT /api/products/:id (image is optional when updating)
 export async function PUT(request, { params }) {
+
   let uploaded = null;
 
   try {
@@ -35,7 +36,15 @@ export async function PUT(request, { params }) {
     for (const field of ["price", "stock"]) {
       if (formData.has(field)) product[field] = Number(formData.get(field));
     }
-
+        // Options and variants are replaced when the form sends them
+    if (formData.has("options") || formData.has("variants")) {
+      const parsed = readVariants(formData);
+      if (parsed.error) {
+        return NextResponse.json({ error: parsed.error }, { status: 400 });
+      }
+      product.options = parsed.options;
+      product.variants = parsed.variants;
+    }
     const oldPublicId = product.image.publicId;
     const file = formData.get("image");
 

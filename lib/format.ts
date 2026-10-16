@@ -1,10 +1,8 @@
+
+
 export function formatMoney(amount: number, currency = "EGP"): string {
-  try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
-  } catch {
-    // Unknown currency code
-    return `${amount.toFixed(2)} ${currency}`;
-  }
+  const number = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(amount);
+  return `${number} ${currency}`;
 }
 
 export function formatDate(iso: string): string {

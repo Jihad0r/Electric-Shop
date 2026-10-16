@@ -5,7 +5,7 @@ import Product from "@/models/Product";
 import { getAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-
+import { restoreStock } from "@/lib/stock";
 const TRANSITIONS = {
   pending: ["confirmed", "cancelled"],
   confirmed: ["shipped", "cancelled"],
@@ -36,7 +36,7 @@ export async function GET(request, { params }) {
 
   await order.populate([
     { path: "user", select: "name email" },
-    { path: "items.product", select: "name price image" },
+    { path: "items.product", select: "name price image variants" },
   ]);
   return NextResponse.json(order);
 }
@@ -81,7 +81,7 @@ export async function PATCH(request, { params }) {
       if (body.status === "cancelled") {
         // Give the stock back
         for (const item of order.items) {
-          await Product.updateOne({ _id: item.product }, { $inc: { stock: item.quantity } });
+          await restoreStock(item);
         }
       }
     }

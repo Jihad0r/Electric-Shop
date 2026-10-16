@@ -7,6 +7,8 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
+import VariantEditor from "@/components/VariantEditor";
+import { buildPayload, draftFromProduct, type VariantsDraft } from "@/lib/variantDraft";
 import { CATEGORIES, type Category, type Product } from "@/types/product";
 
 type Props = {
@@ -43,10 +45,16 @@ export default function ProductModal({ product, onClose, onSaved }: Props) {
     stock: product ? String(product.stock) : "0",
     isActive: product?.isActive ?? true,
   });
+  const [variantsDraft, setVariantsDraft] = useState<VariantsDraft>(() =>
+    draftFromProduct(product)
+  );
   const [image, setImage] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
+
+  // When options exist, price and stock come from the combinations
+  const hasOptions = variantsDraft.options.some((o) => o.name.trim() || o.valuesText.trim());
 
   // Preview of a newly chosen image, released when it changes or the popup closes
   const preview = useMemo(() => (image ? URL.createObjectURL(image) : ""), [image]);
@@ -113,26 +121,41 @@ export default function ProductModal({ product, onClose, onSaved }: Props) {
     e.preventDefault();
     setError("");
 
-    const price = Number(form.price);
-    const stock = Number(form.stock);
-
     if (!form.name.trim()) return setError("Name is required");
-    if (form.price === "" || !Number.isFinite(price) || price < 0) {
-      return setError("Enter a valid price");
+
+    const variantResult = buildPayload(variantsDraft);
+    if ("error" in variantResult) return setError(variantResult.error);
+    const hasVariants = variantResult.variants.length > 0;
+
+    // Simple products need their own price and stock
+    let price = 0;
+    let stock = 0;
+    if (!hasVariants) {
+      price = Number(form.price);
+      stock = Number(form.stock);
+
+      if (form.price === "" || !Number.isFinite(price) || price < 0) {
+        return setError("Enter a valid price");
+      }
+      if (!Number.isInteger(stock) || stock < 0) {
+        return setError("Stock must be a whole number, 0 or more");
+      }
     }
-    if (!Number.isInteger(stock) || stock < 0) {
-      return setError("Stock must be a whole number, 0 or more");
-    }
+
     // A new product needs an image; when editing, the current one is kept
     if (!isEdit && !image) return setError("Please choose a product image");
 
     const data = new FormData();
     data.append("name", form.name.trim());
     data.append("description", form.description.trim());
-    data.append("price", String(price));
     data.append("category", form.category);
-    data.append("stock", String(stock));
     data.append("isActive", String(form.isActive));
+    if (!hasVariants) {
+      data.append("price", String(price));
+      data.append("stock", String(stock));
+    }
+    data.append("options", JSON.stringify(variantResult.options));
+    data.append("variants", JSON.stringify(variantResult.variants));
     if (image) data.append("image", image);
 
     setSubmitting(true);
@@ -171,7 +194,7 @@ export default function ProductModal({ product, onClose, onSaved }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="product-modal-title"
-        className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-4 shadow-xl sm:max-h-[90dvh] sm:rounded-2xl sm:p-6"
+        className="max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-white p-4 shadow-xl sm:max-h-[90dvh] sm:rounded-2xl sm:p-6"
       >
         <div className="flex items-start justify-between">
           <div>
@@ -205,7 +228,7 @@ export default function ProductModal({ product, onClose, onSaved }: Props) {
               required
               value={form.name}
               onChange={handleChange}
-              placeholder="e.g. Samsung Galaxy S24"
+              placeholder="e.g. Dell XPS 15"
               className={inputClass}
             />
           </div>
@@ -223,44 +246,6 @@ export default function ProductModal({ product, onClose, onSaved }: Props) {
               placeholder="Short description of the product"
               className={inputClass}
             />
-          </div>
-
-          {/* Stacks on very narrow phones, two columns from 400px up */}
-          <div className="grid grid-cols-1 gap-4 min-[400px]:grid-cols-2">
-            <div>
-              <label htmlFor="price" className={labelClass}>
-                Price *
-              </label>
-              <input
-                id="price"
-                name="price"
-                type="number"
-                inputMode="decimal"
-                min={0}
-                step="0.01"
-                required
-                value={form.price}
-                onChange={handleChange}
-                placeholder="0.00"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="stock" className={labelClass}>
-                Stock
-              </label>
-              <input
-                id="stock"
-                name="stock"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                step={1}
-                value={form.stock}
-                onChange={handleChange}
-                className={inputClass}
-              />
-            </div>
           </div>
 
           <div>
@@ -281,6 +266,53 @@ export default function ProductModal({ product, onClose, onSaved }: Props) {
               ))}
             </select>
           </div>
+
+          {/* Price and stock: only for products without options */}
+          {hasOptions ? (
+            <p className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">
+              This product has options, so price and stock are set for each combination below. The
+              store shows the lowest price.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 min-[400px]:grid-cols-2">
+              <div>
+                <label htmlFor="price" className={labelClass}>
+                  Price *
+                </label>
+                <input
+                  id="price"
+                  name="price"
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step="0.01"
+                  required
+                  value={form.price}
+                  onChange={handleChange}
+                  placeholder="0.00"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="stock" className={labelClass}>
+                  Stock
+                </label>
+                <input
+                  id="stock"
+                  name="stock"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  step={1}
+                  value={form.stock}
+                  onChange={handleChange}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          )}
+
+          <VariantEditor draft={variantsDraft} onChange={setVariantsDraft} />
 
           <div>
             <label htmlFor="image" className={labelClass}>
@@ -308,7 +340,9 @@ export default function ProductModal({ product, onClose, onSaved }: Props) {
                 />
                 {isEdit && (
                   <p className="mt-1 text-xs text-gray-500">
-                    {preview ? "New image (replaces the current one when you save)" : "Current image"}
+                    {preview
+                      ? "New image (replaces the current one when you save)"
+                      : "Current image"}
                   </p>
                 )}
               </div>

@@ -1,6 +1,7 @@
 import { connectDB } from "@/lib/mongoose";
 import Product from "@/models/Product";
 import { uploadImage, deleteImage, validateImage } from "@/lib/cloudinary";
+import { readVariants } from "@/lib/variants";
 import { getAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
@@ -32,20 +33,30 @@ export async function POST(request) {
       return NextResponse.json({ error: imageError }, { status: 400 });
     }
 
+    // Check this before uploading, so a bad request doesn't create an orphaned image
+    const parsed = readVariants(formData);
+    if (parsed.error) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    const hasOptions = parsed.options.length > 0;
+
     uploaded = await uploadImage(file, "products");
 
     const product = await Product.create({
       name: formData.get("name"),
       description: formData.get("description") || "",
-      price: Number(formData.get("price")),
       category: formData.get("category") || undefined,
-      stock: Number(formData.get("stock") || 0),
+      isActive: formData.get("isActive") !== "false",
+      // With options, price and stock are calculated from the variants
+      price: hasOptions ? 0 : Number(formData.get("price")),
+      stock: hasOptions ? 0 : Number(formData.get("stock") || 0),
+      options: parsed.options,
+      variants: parsed.variants,
       image: uploaded,
     });
 
     return NextResponse.json(product, { status: 201 });
   } catch (error) {
-    // If saving to the DB failed, don't leave an orphaned image in Cloudinary
     if (uploaded) await deleteImage(uploaded.publicId);
 
     const status = error.name === "ValidationError" ? 400 : 500;

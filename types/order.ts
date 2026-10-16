@@ -13,7 +13,10 @@ export type OrderItem = {
     name: string;
     price: number;
     image?: { url: string };
+    variants?: { _id: string; price: number }[];
   } | null;
+  variantId?: string; // set when the product has options
+  variantLabel?: string; // e.g. "16GB / 512GB"
   quantity: number;
 };
 

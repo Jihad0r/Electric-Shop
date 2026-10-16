@@ -5,6 +5,8 @@ const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 const OrderItemSchema = new mongoose.Schema(
   {
     product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+    variantId: { type: mongoose.Schema.Types.ObjectId }, // set when the product has options
+    variantLabel: { type: String, default: "" }, // e.g. "16GB / 512GB"
     quantity: { type: Number, required: true, min: [1, "Quantity must be at least 1"] },
   },
   { _id: false }
@@ -37,7 +39,7 @@ const OrderSchema = new mongoose.Schema(
 
     // Money
     currency: { type: String, default: "EGP" },
-    itemsPrice: { type: Number, default: 0, min: 0 }, // set by the route from real product prices
+    itemsPrice: { type: Number, default: 0, min: 0 }, // set by the route from real prices
     shippingPrice: { type: Number, default: 0, min: 0 },
     taxPrice: { type: Number, default: 0, min: 0 },
     discountCode: { type: String, trim: true, uppercase: true, default: "" },
@@ -56,11 +58,7 @@ const OrderSchema = new mongoose.Schema(
       default: "pending",
     },
     paidAt: Date,
-    paymob: {
-      intentionId: { type: String, default: "" },
-      orderId: { type: String, default: "" },
-      transactionId: { type: String, default: "" },
-    },
+
     // Fulfilment
     status: {
       type: String,

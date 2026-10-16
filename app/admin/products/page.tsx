@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import ProductModal from "@/components/AddProductModal";
+import ProductModal from "@/components/ProductModal";
 import { CATEGORIES, type Category, type Product } from "@/types/product";
 
 type Me = {
@@ -22,6 +22,23 @@ const LOW_STOCK = 5;
 const CURRENCY = "EGP"; // change to match your prices
 
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: CURRENCY });
+
+// Products with options show their lowest price
+function priceLabel(p: Product) {
+  return p.variants && p.variants.length > 0
+    ? `From ${money.format(p.price)}`
+    : money.format(p.price);
+}
+
+function VariantsNote({ product }: { product: Product }) {
+  const count = product.variants?.length ?? 0;
+  if (count === 0) return null;
+  return (
+    <p className="text-xs text-blue-600">
+      {count} {count === 1 ? "variant" : "variants"}
+    </p>
+  );
+}
 
 const fieldClass =
   "rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 sm:text-sm";
@@ -262,10 +279,9 @@ export default function AdminProductsPage() {
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-2 font-medium text-gray-900">{p.name}</p>
                   <p className="mt-0.5 text-xs capitalize text-gray-500">{p.category}</p>
+                  <VariantsNote product={p} />
                 </div>
-                <p className="shrink-0 text-sm font-semibold text-gray-900">
-                  {money.format(p.price)}
-                </p>
+                <p className="shrink-0 text-sm font-semibold text-gray-900">{priceLabel(p)}</p>
               </div>
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
@@ -313,15 +329,16 @@ export default function AdminProductsPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <Thumb product={p} />
-                      <span className="max-w-[16rem] truncate font-medium text-gray-900 lg:max-w-sm">
-                        {p.name}
-                      </span>
+                      <div className="min-w-0">
+                        <span className="block max-w-[16rem] truncate font-medium text-gray-900 lg:max-w-sm">
+                          {p.name}
+                        </span>
+                        <VariantsNote product={p} />
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 capitalize text-gray-600">{p.category}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-gray-900">
-                    {money.format(p.price)}
-                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-gray-900">{priceLabel(p)}</td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <StockBadge stock={p.stock} />
                   </td>
