@@ -32,45 +32,54 @@ function Visual({
 }) {
   const showBadge = slide.showBadge && Boolean(slide.badgeTop || slide.badgeMain);
 
-  return (
-    <div className="relative">
-      {showBadge && (
-        <div className="absolute right-0 top-0 z-10 rounded-xl bg-brand-600 px-3 py-2 text-center leading-tight shadow-lg shadow-brand-600/40">
-          <p className="text-xs text-blue-100">{slide.badgeTop}</p>
-          <p className="text-base font-extrabold text-white">{slide.badgeMain}</p>
-        </div>
-      )}
-
-      {slide.imageUrl ? (
-        <div className="relative mx-auto aspect-square w-full max-w-md overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/15">
-          <Image
-            src={slide.imageUrl}
-            alt=""
-            fill
-            priority={priority}
-            sizes="(min-width: 1024px) 28rem, 90vw"
-            className="object-contain p-4"
-          />
-        </div>
-      ) : (
-        fallback.length > 0 && (
-          <div
-            className="relative mx-auto h-72 w-full max-w-md sm:h-96 lg:max-w-none"
-            aria-hidden="true"
-          >
-            {fallback.map((p, i) => (
-              <div
-                key={p.id}
-                className={`absolute ${FALLBACK_POSITIONS[i]} aspect-square overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/15 backdrop-blur`}
-              >
-                <Image src={p.image} alt="" fill sizes="260px" className="object-contain p-3" />
-              </div>
-            ))}
-          </div>
-        )
-      )}
+  // Sits on the top-right corner of whatever it is placed inside
+  const badge = showBadge && (
+    <div className="absolute -right-2 -top-3 z-10 rounded-xl bg-brand-600 px-3 py-2 text-center leading-tight shadow-lg shadow-brand-600/40 sm:-right-4 sm:-top-4 sm:px-4 sm:py-2.5">
+      <p className="text-xs text-blue-100">{slide.badgeTop}</p>
+      <p className="text-base font-extrabold text-white sm:text-lg">{slide.badgeMain}</p>
     </div>
   );
+
+  // Your picture: no box, no frame. The wrapper is exactly as big as the image,
+  // so the badge lands on the image's own top-right corner.
+  if (slide.imageUrl) {
+    return (
+      <div className="flex justify-center">
+        <div className="relative inline-block max-w-full">
+          {badge}
+          {/* A plain <img> keeps its natural proportions, so the corner is always the image's corner */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={slide.imageUrl}
+            alt=""
+            fetchPriority={priority ? "high" : undefined}
+            className="block h-auto max-h-72 w-auto max-w-full object-contain drop-shadow-2xl sm:max-h-96 lg:max-h-[28rem]"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // No image uploaded: show the newest product photos
+  if (fallback.length > 0) {
+    return (
+      <div className="relative mx-auto h-72 w-full max-w-md sm:h-96 lg:max-w-none">
+        {badge}
+        <div className="absolute inset-0" aria-hidden="true">
+          {fallback.map((p, i) => (
+            <div
+              key={p.id}
+              className={`absolute ${FALLBACK_POSITIONS[i]} aspect-square overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/15 backdrop-blur`}
+            >
+              <Image src={p.image} alt="" fill sizes="260px" className="object-contain p-3" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 export default function HeroSlider({

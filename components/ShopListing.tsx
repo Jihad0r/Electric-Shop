@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import ProductCard from "@/components/ProductCard";
-import { PAGE_SIZE, getShopProducts, type ShopSort } from "@/lib/catalog";
+import ShopProducts from "@/components/ShopProducts";
+import { getShopProducts, type ShopSort } from "@/lib/catalog";
 import { CATEGORY_META, STORE_NAME } from "@/lib/store";
 import { CATEGORIES, isCategory, type Category } from "@/types/product";
 
@@ -12,7 +12,6 @@ type Filters = {
   min?: number;
   max?: number;
   sort: ShopSort;
-  page: number;
 };
 
 const SORTS: { value: ShopSort; label: string }[] = [
@@ -38,7 +37,6 @@ function parseFilters(raw: RawParams): Filters {
     min: toNumber(first(raw.min)),
     max: toNumber(first(raw.max)),
     sort: SORTS.some((s) => s.value === sort) ? (sort as ShopSort) : "newest",
-    page: Math.max(1, Math.floor(Number(first(raw.page))) || 1),
   };
 }
 
@@ -52,7 +50,6 @@ function href(category: Category | undefined, current: Filters, patch: Partial<F
   if (next.min !== undefined) params.set("min", String(next.min));
   if (next.max !== undefined) params.set("max", String(next.max));
   if (next.sort !== "newest") params.set("sort", next.sort);
-  if (next.page > 1) params.set("page", String(next.page));
   const qs = params.toString();
   return qs ? `${pathFor(category)}?${qs}` : pathFor(category);
 }
@@ -105,7 +102,7 @@ function PriceForm({ category, filters }: { category?: Category; filters: Filter
         </button>
         {hasPrice && (
           <Link
-            href={href(category, filters, { min: undefined, max: undefined, page: 1 })}
+            href={href(category, filters, { min: undefined, max: undefined })}
             className="text-sm text-slate-400 transition hover:text-white"
           >
             Clear
@@ -113,46 +110,6 @@ function PriceForm({ category, filters }: { category?: Category; filters: Filter
         )}
       </div>
     </form>
-  );
-}
-
-function Pagination({
-  category,
-  filters,
-  page,
-  pages,
-}: {
-  category?: Category;
-  filters: Filters;
-  page: number;
-  pages: number;
-}) {
-  if (pages <= 1) return null;
-
-  const base = "rounded-lg px-4 py-2 text-sm font-medium transition";
-  const active = `${base} bg-white/10 text-white hover:bg-white/20`;
-  const disabled = `${base} cursor-not-allowed bg-white/5 text-slate-600`;
-
-  return (
-    <nav aria-label="Pagination" className="mt-8 flex items-center justify-center gap-3">
-      {page > 1 ? (
-        <Link href={href(category, filters, { page: page - 1 })} className={active}>
-          Previous
-        </Link>
-      ) : (
-        <span className={disabled}>Previous</span>
-      )}
-      <span className="text-sm text-slate-400">
-        Page {page} of {pages}
-      </span>
-      {page < pages ? (
-        <Link href={href(category, filters, { page: page + 1 })} className={active}>
-          Next
-        </Link>
-      ) : (
-        <span className={disabled}>Next</span>
-      )}
-    </nav>
   );
 }
 
@@ -191,7 +148,8 @@ export default async function ShopListing({
     if (legacy && isCategory(legacy)) redirect(href(legacy, filters));
   }
 
-  const { products, total, page, pages } = await getShopProducts({ ...filters, category });
+  // Always starts at the first batch. The Load more button fetches the rest.
+  const { products, total, pages } = await getShopProducts({ ...filters, category, page: 1 });
 
   const title = category
     ? CATEGORY_META[category].label
@@ -199,9 +157,10 @@ export default async function ShopListing({
       ? `Results for "${filters.search}"`
       : "All products";
 
-  const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const to = Math.min(page * PAGE_SIZE, total);
   const hasFilters = Boolean(filters.search || filters.min !== undefined || filters.max !== undefined);
+
+  // A new key resets the "Load more" list whenever the category, search, price or sort changes
+  const listKey = [category ?? "all", filters.search ?? "", filters.min ?? "", filters.max ?? "", filters.sort].join("|");
 
   const pill = (isActive: boolean) =>
     `shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition ${
@@ -238,9 +197,7 @@ export default async function ShopListing({
           <h1 className="text-2xl font-bold text-white sm:text-3xl">{title}</h1>
           {category && <p className="mt-1 text-sm text-slate-300">{CATEGORY_META[category].blurb}</p>}
           <p className="mt-1 text-sm text-slate-400">
-            {total === 0
-              ? "No products found"
-              : `Showing ${from}-${to} of ${total} ${total === 1 ? "product" : "products"}`}
+            {total === 0 ? "No products found" : `${total} ${total === 1 ? "product" : "products"}`}
           </p>
         </div>
 
@@ -251,7 +208,7 @@ export default async function ShopListing({
             {SORTS.map((s) => (
               <Link
                 key={s.value}
-                href={href(category, filters, { sort: s.value, page: 1 })}
+                href={href(category, filters, { sort: s.value })}
                 aria-current={filters.sort === s.value ? "true" : undefined}
                 className={pill(filters.sort === s.value)}
               >
@@ -262,15 +219,12 @@ export default async function ShopListing({
         </div>
       </div>
 
-      {/* Categories: a swipeable row on phones */}
-      <div className="-mx-4 mt-5 overflow-x-auto px-4 lg:hidden">
+      {/* Categories on phones and tablets: a swipeable row that stays under the navbar.
+          If you see a gap or overlap, adjust the two top-[...] values to match your navbar height. */}
+      <div className="sticky top-[10.25rem] z-30 -mx-4 mt-5 overflow-x-auto bg-ink-950/95 px-4 py-2 backdrop-blur md:top-[7.25rem] lg:hidden">
         <div className="flex gap-2 whitespace-nowrap">
           {CATEGORY_ITEMS.map((c) => (
-            <Link
-              key={c.label}
-              href={href(c.value, filters, { page: 1 })}
-              className={pill(category === c.value)}
-            >
+            <Link key={c.label} href={href(c.value, filters)} className={pill(category === c.value)}>
               {c.label}
             </Link>
           ))}
@@ -288,9 +242,9 @@ export default async function ShopListing({
       </details>
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[16rem_1fr]">
-        {/* Sidebar (large screens) */}
+        {/* Sidebar (large screens): stays in view while you scroll */}
         <aside className="hidden lg:block">
-          <div className="space-y-6 rounded-xl bg-ink-900/60 p-4 ring-1 ring-white/10">
+          <div className="sticky top-[7.75rem] max-h-[calc(100dvh-8.75rem)] space-y-6 overflow-y-auto rounded-xl bg-ink-900/60 p-4 ring-1 ring-white/10">
             <div>
               <h2 className="text-sm font-semibold text-white">Categories</h2>
               <ul className="mt-3 space-y-1">
@@ -299,7 +253,7 @@ export default async function ShopListing({
                   return (
                     <li key={c.label}>
                       <Link
-                        href={href(c.value, filters, { page: 1 })}
+                        href={href(c.value, filters)}
                         aria-current={isActive ? "page" : undefined}
                         className={`block rounded-lg px-3 py-2 text-sm transition ${
                           isActive
@@ -342,16 +296,20 @@ export default async function ShopListing({
               </Link>
             </div>
           ) : (
-            <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
-              {products.map((p) => (
-                <li key={p._id}>
-                  <ProductCard product={p} />
-                </li>
-              ))}
-            </ul>
+            <ShopProducts
+              key={listKey}
+              initialProducts={products}
+              initialTotal={total}
+              initialPages={pages}
+              query={{
+                category,
+                search: filters.search,
+                min: filters.min,
+                max: filters.max,
+                sort: filters.sort,
+              }}
+            />
           )}
-
-          <Pagination category={category} filters={filters} page={page} pages={pages} />
         </section>
       </div>
     </>

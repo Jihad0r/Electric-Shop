@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import CartBadge from "@/components/CartBadge";
 import Logo from "@/components/Logo";
 import LogoutButton from "@/components/LogoutButton";
 import { CATEGORY_META, STORE_NAME } from "@/lib/store";
@@ -93,8 +94,9 @@ export default function StoreNav() {
   const pathname = usePathname();
   // undefined = still checking, null = logged out
   const [user, setUser] = useState<Me | null | undefined>(undefined);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const accountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,13 +116,18 @@ export default function StoreNav() {
     };
   }, []);
 
-  // Close the account menu on outside click or Escape
+  // Close the account menu on an outside click, and both menus on Escape
   useEffect(() => {
     const onMouseDown = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) {
+        setAccountOpen(false);
+      }
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key === "Escape") {
+        setAccountOpen(false);
+        setMenuOpen(false);
+      }
     };
     document.addEventListener("mousedown", onMouseDown);
     window.addEventListener("keydown", onKeyDown);
@@ -130,38 +137,67 @@ export default function StoreNav() {
     };
   }, []);
 
+  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+
+  const linkClass = (active: boolean) =>
+    `block whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition ${
+      active ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"
+    }`;
+
   const menuItem =
     "block rounded-lg px-3 py-2 text-sm text-slate-200 transition hover:bg-white/10 hover:text-white";
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-ink-950/90 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:gap-6 sm:px-6 lg:px-8">
+      {/* One row: logo, links, search, account, cart */}
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:gap-5 lg:px-8">
         {/* Brand */}
-        <Link href="/" className="flex shrink-0 items-center gap-2">
+        <Link
+          href="/"
+          onClick={() => setMenuOpen(false)}
+          className="flex shrink-0 items-center gap-2"
+        >
           <Logo className="h-7 w-7 text-brand-400" />
           <span className="text-lg font-bold text-white">{STORE_NAME}</span>
         </Link>
 
-        {/* Search (tablet and up) */}
-        <SearchBox className="hidden flex-1 md:mx-auto md:block md:max-w-xl" />
+        {/* Links (large screens) */}
+        <nav aria-label="Main" className="hidden shrink-0 lg:block">
+          <ul className="flex items-center gap-0.5">
+            {LINKS.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  aria-current={isActive(link.href) ? "page" : undefined}
+                  className={linkClass(isActive(link.href))}
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
-        {/* Account and cart */}
-        <div className="ml-auto flex items-center gap-1 md:ml-0">
+        {/* Search (tablets and up) */}
+        <SearchBox className="hidden min-w-0 flex-1 md:mx-auto md:block md:max-w-xl" />
+
+        {/* Account, cart and menu button */}
+        <div className="ml-auto flex shrink-0 items-center gap-1 md:ml-0">
           {user === undefined ? (
             <div className="h-9 w-9 animate-pulse rounded-lg bg-white/10" />
           ) : user ? (
-            <div ref={menuRef} className="relative">
+            <div ref={accountRef} className="relative">
               <button
                 type="button"
-                onClick={() => setMenuOpen((o) => !o)}
+                onClick={() => setAccountOpen((o) => !o)}
                 aria-label="Account menu"
-                aria-expanded={menuOpen}
+                aria-expanded={accountOpen}
                 className={iconButton}
               >
                 <UserIcon />
               </button>
 
-              {menuOpen && (
+              {accountOpen && (
                 <div className="absolute right-0 mt-2 w-56 rounded-xl bg-ink-800 p-2 shadow-xl ring-1 ring-white/10">
                   <div className="border-b border-white/10 px-3 pb-2 pt-1">
                     <p className="truncate text-sm font-medium text-white">{user.name}</p>
@@ -170,13 +206,13 @@ export default function StoreNav() {
                   <div className="pt-2">
                     <Link
                       href="/account/orders"
-                      onClick={() => setMenuOpen(false)}
+                      onClick={() => setAccountOpen(false)}
                       className={menuItem}
                     >
                       My orders
                     </Link>
                     {user.role === "admin" && (
-                      <Link href="/admin" onClick={() => setMenuOpen(false)} className={menuItem}>
+                      <Link href="/admin" onClick={() => setAccountOpen(false)} className={menuItem}>
                         Admin dashboard
                       </Link>
                     )}
@@ -185,7 +221,7 @@ export default function StoreNav() {
                       redirectTo="/"
                       onLoggedOut={() => {
                         setUser(null);
-                        setMenuOpen(false);
+                        setAccountOpen(false);
                       }}
                     />
                   </div>
@@ -206,40 +242,49 @@ export default function StoreNav() {
             </>
           )}
 
-          <Link href="/cart" aria-label="Cart" className={iconButton}>
+          <Link href="/cart" aria-label="Cart" className={`relative ${iconButton}`}>
             <CartIcon />
+            <CartBadge />
           </Link>
+
+          {/* Menu button: the links live here on phones and tablets */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+            aria-controls="store-menu"
+            className={`${iconButton} lg:hidden`}
+          >
+            <Svg>{menuOpen ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}</Svg>
+          </button>
         </div>
       </div>
 
-      {/* Search (phones) */}
+      {/* Search (phones): a thin row under the main bar */}
       <div className="px-4 pb-3 md:hidden">
         <SearchBox />
       </div>
 
-      {/* Category links: a swipeable row on phones */}
-      <nav aria-label="Main" className="border-t border-white/5">
-        <ul className="mx-auto flex max-w-7xl gap-1 overflow-x-auto whitespace-nowrap px-4 py-2 sm:px-6 lg:px-8">
-          {LINKS.map((link) => {
-            const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
-            return (
+      {/* Links menu (phones and tablets) */}
+      {menuOpen && (
+        <nav id="store-menu" aria-label="Main" className="border-t border-white/10 lg:hidden">
+          <ul className="mx-auto grid max-w-7xl grid-cols-2 gap-1 px-4 py-3 sm:grid-cols-3 sm:px-6">
+            {LINKS.map((link) => (
               <li key={link.href}>
                 <Link
                   href={link.href}
-                  aria-current={active ? "page" : undefined}
-                  className={`block rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                    active
-                      ? "bg-white/10 text-white"
-                      : "text-slate-300 hover:bg-white/5 hover:text-white"
-                  }`}
+                  onClick={() => setMenuOpen(false)}
+                  aria-current={isActive(link.href) ? "page" : undefined}
+                  className={linkClass(isActive(link.href))}
                 >
                   {link.label}
                 </Link>
               </li>
-            );
-          })}
-        </ul>
-      </nav>
+            ))}
+          </ul>
+        </nav>
+      )}
     </header>
   );
 }

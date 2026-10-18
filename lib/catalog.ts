@@ -156,8 +156,8 @@ export async function getOfferRows(maxRows = 4, perRow = 10): Promise<OfferRow[]
 
 /* ---------- Shop and category pages ---------- */
 
-export async function getShopProducts(q: ShopQuery): Promise<ShopResult> {
-  await connection(); // offers depend on the current date
+// Runs the shop query. The API route uses this directly; pages use getShopProducts below.
+export async function loadShopProducts(q: ShopQuery): Promise<ShopResult> {
   try {
     await connectDB();
 
@@ -197,6 +197,10 @@ export async function getShopProducts(q: ShopQuery): Promise<ShopResult> {
   }
 }
 
+export async function getShopProducts(q: ShopQuery): Promise<ShopResult> {
+  await connection(); // offers depend on the current date
+  return loadShopProducts(q);
+}
 /* ---------- Single product page ---------- */
 
 type RawVariant = {
@@ -206,12 +210,11 @@ type RawVariant = {
   stock: number;
 };
 
-type RawDetail = RawProduct & {
+type RawDetail = Omit<RawProduct, "variants"> & {
   description?: string;
   options?: { name: string; values: string[] }[];
   variants?: RawVariant[];
 };
-
 // cache() lets the page and its sections share one database query
 export const getProductDetail = cache(async (id: string): Promise<ProductDetail | null> => {
   await connection();
@@ -254,16 +257,31 @@ export const getProductDetail = cache(async (id: string): Promise<ProductDetail 
 export async function getRelated(
   category: Category,
   excludeId: string,
-  limit = 4
+  limit = 8
 ): Promise<ProductSummary[]> {
   await connection();
   try {
     await connectDB();
     const offers = (await getActiveOffers()) as unknown as OfferDoc[];
-    const docs = (await Product.find({ isActive: true, category, _id: { $ne: excludeId } })
+
+    // Same category first
+    const same = (await Product.find({ isActive: true, category, _id: { $ne: excludeId } })
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean()) as unknown as RawProduct[];
+
+    let docs = same;
+
+    // Then top up with the newest products from other categories
+    if (docs.length < limit) {
+      const used = [excludeId, ...same.map((p) => String(p._id))];
+      const more = (await Product.find({ isActive: true, _id: { $nin: used } })
+        .sort({ createdAt: -1 })
+        .limit(limit - docs.length)
+        .lean()) as unknown as RawProduct[];
+      docs = [...same, ...more];
+    }
+
     return docs.map((p) => toSummary(p, offers));
   } catch (error) {
     console.error("Could not load related products:", error);

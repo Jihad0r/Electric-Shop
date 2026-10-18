@@ -6,7 +6,7 @@ import ProductCard from "@/components/ProductCard";
 import { getFeatured, getOfferRows } from "@/lib/catalog";
 import { getHeroSlides } from "@/lib/hero";
 import { OFFER, PERKS, STORE_NAME } from "@/lib/store";
-
+import ProductSlider from "@/components/ProductSlider";
 export const metadata: Metadata = {
   title: `${STORE_NAME} | Phones, laptops, tablets & accessories`,
   description: "Shop the latest phones, laptops, tablets and accessories.",
@@ -59,28 +59,29 @@ async function OfferRows() {
         <section key={row.id} className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-xl font-bold text-black sm:text-2xl">{row.title}</h2>
-            <span className="rounded-full bg-brand-500/15 px-2.5 py-0.5 text-xs font-semibold text-brand-400 ring-1 ring-brand-500/30">
+            <span className="rounded-full bg-brand-500/15 px-2.5 py-0.5 text-xs font-semibold text-brand-600 ring-1 ring-brand-500/30">
               {row.label}
             </span>
           </div>
-          {row.description && <p className="mt-1 text-sm text-slate-400">{row.description}</p>}
+          {row.description && <p className="mt-1 text-sm text-gray-600">{row.description}</p>}
           {row.endsAt && (
-            <p className="mt-1 text-xs font-medium text-amber-300">Ends {formatDay(row.endsAt)}</p>
+            <p className="mt-1 text-xs font-medium text-amber-600">Ends {formatDay(row.endsAt)}</p>
           )}
 
-          <ul className="-mx-4 mt-5 flex snap-x gap-3 overflow-x-auto px-4 pb-3 sm:mx-0 sm:px-0">
-            {row.products.map((p) => (
-              <li key={p._id} className="w-44 shrink-0 snap-start sm:w-52">
-                <ProductCard product={p} />
-              </li>
-            ))}
-          </ul>
+          <div className="mt-5">
+            <ProductSlider label={`${row.title} products`}>
+              {row.products.map((p) => (
+                <li key={p._id} className="w-52 shrink-0 sm:w-[10%]">
+                  <ProductCard product={p} />
+                </li>
+              ))}
+            </ProductSlider>
+          </div>
         </section>
       ))}
     </>
   );
 }
-
 async function FeaturedProducts() {
   const products = (await loadFeatured()).slice(0, 4);
 
@@ -213,7 +214,7 @@ export default function HomePage() {
 
       {/* Limited time offer banner (static text, edit it in lib/store.ts) */}
       <section className="mx-auto max-w-7xl px-4 pb-6 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-ink-700 via-brand-700 to-brand-600 p-6 sm:p-8">
+        <div className="relative  overflow-hidden rounded-2xl bg-linear-to-r from-ink-700 via-brand-700 to-brand-600 p-6 sm:p-8">
           <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-bold text-black sm:text-2xl">{OFFER.title}</h2>

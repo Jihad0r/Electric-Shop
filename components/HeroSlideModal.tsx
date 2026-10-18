@@ -383,24 +383,28 @@ export default function HeroSlideModal({ slide, onClose, onSaved }: Props) {
                   )}
                 </div>
 
-                <div className="relative">
-                  {showBadgePreview && (
-                    <div className="absolute right-0 top-0 z-10 rounded-lg bg-brand-600 px-2.5 py-1.5 text-center leading-tight">
-                      <p className="text-[10px] text-blue-100">{form.badgeTop}</p>
-                      <p className="text-sm font-extrabold text-white">{form.badgeMain}</p>
-                    </div>
-                  )}
-                  <div className="flex aspect-video items-center justify-center overflow-hidden rounded-xl bg-white/5 ring-1 ring-white/15">
-                    {imageShown ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={imageShown} alt="Slide preview" className="h-full w-full object-contain p-2" />
-                    ) : (
-                      <p className="px-4 text-center text-xs text-slate-300">
-                        No image. Your newest products are shown instead.
-                      </p>
-                    )}
-                  </div>
-                </div>
+                <div className="flex min-h-32 items-center justify-center">
+  {imageShown ? (
+    <div className="relative inline-block max-w-full">
+      {showBadgePreview && (
+        <div className="absolute -right-2 -top-2 z-10 rounded-lg bg-brand-600 px-2.5 py-1.5 text-center leading-tight">
+          <p className="text-[10px] text-blue-100">{form.badgeTop}</p>
+          <p className="text-sm font-extrabold text-white">{form.badgeMain}</p>
+        </div>
+      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={imageShown}
+        alt="Slide preview"
+        className="block h-auto max-h-40 w-auto max-w-full object-contain drop-shadow-xl"
+      />
+    </div>
+  ) : (
+    <p className="px-4 text-center text-xs text-slate-300">
+      No image. Your newest products are shown instead.
+    </p>
+  )}
+</div>
               </div>
             </div>
           </div>
