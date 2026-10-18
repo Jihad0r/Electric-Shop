@@ -9,7 +9,7 @@ export type HeroContent = {
   badgeMain: string;
   imageUrl: string;
 };
-
+export const DEFAULT_HERO_IMAGE = "/hero-default.png";
 export type HeroSlideData = HeroContent & {
   id: string;
   isActive: boolean;

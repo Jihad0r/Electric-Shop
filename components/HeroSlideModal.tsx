@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
-import { HERO_LIMITS, isSafeHref, type HeroSlideData } from "@/lib/heroDefaults";
+import { DEFAULT_HERO_IMAGE, HERO_LIMITS, isSafeHref, type HeroSlideData } from "@/lib/heroDefaults";
 
 type Props = {
   slide?: HeroSlideData; // when given, the popup edits this slide
@@ -157,7 +157,7 @@ export default function HeroSlideModal({ slide, onClose, onSaved }: Props) {
   };
 
   const showBadgePreview = form.showBadge && (form.badgeTop || form.badgeMain);
-
+  const previewSrc = imageShown || DEFAULT_HERO_IMAGE;
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4"

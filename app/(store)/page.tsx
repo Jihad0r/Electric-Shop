@@ -7,6 +7,7 @@ import { getFeatured, getOfferRows } from "@/lib/catalog";
 import { getHeroSlides } from "@/lib/hero";
 import { OFFER, PERKS, STORE_NAME } from "@/lib/store";
 import ProductSlider from "@/components/ProductSlider";
+import { DEFAULT_HERO_IMAGE } from "@/lib/heroDefaults";
 export const metadata: Metadata = {
   title: `${STORE_NAME} | Phones, laptops, tablets & accessories`,
   description: "Shop the latest phones, laptops, tablets and accessories.",
@@ -27,7 +28,7 @@ async function HeroSection() {
   const slides = await getHeroSlides();
 
   // Slides without an image show the newest product photos instead
-  const needsFallback = slides.some((s) => !s.imageUrl);
+  const needsFallback = !DEFAULT_HERO_IMAGE && slides.some((s) => !s.imageUrl);
   const fallback = needsFallback
     ? (await loadFeatured())
         .filter((p) => p.image)
@@ -58,7 +59,7 @@ async function OfferRows() {
       {rows.map((row) => (
         <section key={row.id} className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-bold text-black sm:text-2xl">{row.title}</h2>
+            <h2 className="text-xl font-bold text-white sm:text-3xl">{row.title}</h2>
             <span className="rounded-full bg-brand-500/15 px-2.5 py-0.5 text-xs font-semibold text-brand-600 ring-1 ring-brand-500/30">
               {row.label}
             </span>
@@ -71,7 +72,7 @@ async function OfferRows() {
           <div className="mt-5">
             <ProductSlider label={`${row.title} products`}>
               {row.products.map((p) => (
-                <li key={p._id} className="w-52 shrink-0 sm:w-[10%]">
+                <li key={p._id} className="w-44 shrink-0 sm:w-52">
                   <ProductCard product={p} />
                 </li>
               ))}
@@ -196,7 +197,7 @@ export default function HomePage() {
       {/* Featured products */}
       <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between gap-3">
-          <h2 className="text-xl font-bold text-black sm:text-2xl">Featured Products</h2>
+          <h2 className="text-xl font-bold text-white sm:text-3xl">Featured Products</h2>
           <Link
             href="/products"
             className="shrink-0 text-sm font-medium text-brand-400 transition hover:text-black"
@@ -213,11 +214,11 @@ export default function HomePage() {
       </section>
 
       {/* Limited time offer banner (static text, edit it in lib/store.ts) */}
-      <section className="mx-auto max-w-7xl px-4 pb-6 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 pb-6  sm:px-6 lg:px-8">
         <div className="relative  overflow-hidden rounded-2xl bg-linear-to-r from-ink-700 via-brand-700 to-brand-600 p-6 sm:p-8">
           <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-bold text-black sm:text-2xl">{OFFER.title}</h2>
+              <h2 className="text-xl font-bold text-white sm:text-2xl">{OFFER.title}</h2>
               <p className="mt-1 text-sm text-blue-100 sm:text-base">{OFFER.text}</p>
               <Link
                 href={OFFER.href}
@@ -226,7 +227,7 @@ export default function HomePage() {
                 {OFFER.cta} <span aria-hidden="true">&rarr;</span>
               </Link>
             </div>
-            <p className="self-start rounded-2xl bg-white/10 px-6 py-3 text-4xl font-extrabold text-black ring-1 ring-white/20 sm:self-center sm:text-5xl">
+            <p className="self-start rounded-2xl bg-white/10 px-6 py-3 text-4xl font-extrabold text-white ring-1 ring-white/20 sm:self-center sm:text-5xl">
               {OFFER.badge}
             </p>
           </div>

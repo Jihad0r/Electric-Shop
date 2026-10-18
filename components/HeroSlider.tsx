@@ -2,8 +2,7 @@
 import { useCallback, useEffect, useRef, useState, type TouchEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import type { HeroSlideData } from "@/lib/heroDefaults";
-
+import { DEFAULT_HERO_IMAGE, type HeroSlideData } from "@/lib/heroDefaults";
 type Fallback = { id: string; image: string };
 
 const AUTOPLAY_MS = 6000; // time each slide stays, in milliseconds
@@ -42,7 +41,10 @@ function Visual({
 
   // Your picture: no box, no frame. The wrapper is exactly as big as the image,
   // so the badge lands on the image's own top-right corner.
-  if (slide.imageUrl) {
+    // The slide's own image, or the default one
+  const src = slide.imageUrl || DEFAULT_HERO_IMAGE;
+
+  if (src) {
     return (
       <div className="flex justify-center">
         <div className="relative inline-block max-w-full">
@@ -50,7 +52,7 @@ function Visual({
           {/* A plain <img> keeps its natural proportions, so the corner is always the image's corner */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={slide.imageUrl}
+            src={src}
             alt=""
             fetchPriority={priority ? "high" : undefined}
             className="block h-auto max-h-72 w-auto max-w-full object-contain drop-shadow-2xl sm:max-h-96 lg:max-h-[28rem]"

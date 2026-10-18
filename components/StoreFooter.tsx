@@ -58,7 +58,7 @@ export default function StoreFooter() {
       </div>
 
       <div className="border-t border-white/10 px-4 py-4 text-center text-xs text-slate-500">
-        &copy; {STORE_NAME}. All rights reserved.
+        &copy; Jihad Orabi. All rights reserved.
       </div>
     </footer>
   );
