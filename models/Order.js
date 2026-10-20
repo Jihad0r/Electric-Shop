@@ -18,6 +18,7 @@ const ShippingAddressSchema = new mongoose.Schema(
     phone: { type: String, required: true, trim: true },
     street: { type: String, required: true, trim: true },
     city: { type: String, required: true, trim: true },
+        cityCode: { type: String, trim: true, default: "" }, // Bosta's code for the city
     postalCode: { type: String, trim: true, default: "" },
     country: { type: String, required: true, trim: true },
   },
@@ -58,7 +59,13 @@ const OrderSchema = new mongoose.Schema(
       default: "pending",
     },
     paidAt: Date,
-
+        paymob: {
+      intentionId: { type: String, default: "" },
+      orderId: { type: String, default: "" },
+      transactionId: { type: String, default: "" },
+    },
+        payment: { type: mongoose.Schema.Types.ObjectId, ref: "Payment" },
+    shipment: { type: mongoose.Schema.Types.ObjectId, ref: "Shipment" },
     // Fulfilment
     status: {
       type: String,

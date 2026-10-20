@@ -42,7 +42,8 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/");
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.push(next && /^\/(?![\/\\])/.test(next) ? next : "/");
       router.refresh(); // so server components see the new cookie
     } catch {
       setError("Network error. Please try again.");

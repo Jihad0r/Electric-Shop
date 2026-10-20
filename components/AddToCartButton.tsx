@@ -1,9 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { addToCart, readCart } from "@/lib/cart";
 import type { ProductSummary } from "@/types/product";
-
+import { addToCart } from "@/lib/cart";
 type Status = "idle" | "added" | "max";
 
 const buttonClass =
@@ -79,26 +78,23 @@ export default function AddToCartButton({ product }: { product: ProductSummary }
     timer.current = setTimeout(() => setStatus("idle"), 2000);
   };
 
+ 
   const handleClick = () => {
     if (soldOut) return;
 
-    // Don't let the cart hold more than what's in stock
-    const inCart = readCart().find((i) => i.key === `${product._id}:`)?.quantity ?? 0;
-    if (inCart >= product.stock) {
-      flash("max");
-      return;
-    }
+    const result = addToCart(
+      {
+        productId: product._id,
+        name: product.name,
+        image: product.image,
+        price: product.price,
+        quantity: 1,
+      },
+      product.stock
+    );
 
-    addToCart({
-      productId: product._id,
-      name: product.name,
-      image: product.image,
-      price: product.price,
-      quantity: 1,
-    });
-    flash("added");
+    flash(result.status === "added" || result.status === "partial" ? "added" : "max");
   };
-
   const stateClass = soldOut
     ? "cursor-not-allowed border-gray-200 text-gray-300"
     : status === "added"

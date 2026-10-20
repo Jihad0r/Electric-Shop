@@ -45,6 +45,7 @@ export type Order = {
   paidAt?: string;
   status: OrderStatus;
   createdAt: string;
+  shipment?: ShipmentInfo | null;
 };
 
 export type OrdersResponse = {
@@ -52,4 +53,12 @@ export type OrdersResponse = {
   total: number;
   page: number;
   pages: number;
+};
+
+export type ShipmentInfo = {
+  courier?: string;
+  trackingNumber?: string;
+  status: "pending" | "shipped" | "delivered" | "cancelled" | "returned";
+  bostaState?: number;
+  lastError?: string;
 };

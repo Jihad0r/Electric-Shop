@@ -9,11 +9,12 @@ import {
   type OrderStatus,
   type PaymentStatus,
 } from "@/types/order";
-
+   import ShippingInfo from "@/components/ShippingInfo";
 export type OrderPatch = {
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   paidAt?: string;
+  shipment?: ShipmentInfo | null;
 };
 
 type Props = {
@@ -110,6 +111,7 @@ export default function OrderModal({ order, onClose, onUpdated }: Props) {
       onUpdated(order._id, {
         status: json.status,
         paymentStatus: json.paymentStatus,
+        shipment: json.shipment ?? null,
         paidAt: json.paidAt,
       });
       setNextStatus("");
@@ -279,7 +281,9 @@ export default function OrderModal({ order, onClose, onUpdated }: Props) {
             )}
           </div>
         </section>
-
+   <div className="mt-5">
+     <ShippingInfo shipment={order.shipment} admin />
+   </div>
         {/* Update */}
         <section className="mt-5 rounded-xl border border-gray-200 p-3 sm:p-4">
           <h3 className="text-sm font-semibold text-gray-900">Update order</h3>

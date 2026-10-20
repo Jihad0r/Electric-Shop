@@ -3,13 +3,14 @@ import Order from "@/models/Order";
 import Product from "@/models/Product";
 import { restoreStock } from "@/lib/stock";
 import { getActiveOffers, bestOffer } from "@/lib/offers";
+import { AUTO_SHIP_COD, TAX_RATE, shippingFor } from "@/lib/shipping";
+import { expireStaleOrders } from "@/lib/expireOrders";
+import { isOnlineAvailable } from "@/lib/paymob";
+import { syncRecords } from "@/lib/fulfillment";
+import { shipOrder } from "@/lib/shipOrder";
 import { getAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-
-const FREE_SHIPPING_OVER = 100;
-const SHIPPING_FEE = 5;
-const TAX_RATE = 0;
 
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 const isId = (v) => mongoose.Types.ObjectId.isValid(v);
@@ -29,7 +30,20 @@ export async function POST(request) {
     if (!auth) return bad("Please log in", 401);
 
     await connectDB();
+
+    // Give back the stock of online orders that were never paid
+    await expireStaleOrders().catch((e) => console.error("Could not release old orders:", e));
+
     const { items, shippingAddress, paymentMethod } = await request.json();
+
+    const method = paymentMethod ?? "cod";
+    if (!["cod", "card", "wallet"].includes(method)) return bad("Invalid payment method");
+    if (method !== "cod" && !isOnlineAvailable(method)) {
+      return bad("That payment method isn't available right now");
+    }
+    if (!shippingAddress || typeof shippingAddress !== "object") {
+      return bad("Please enter your shipping address");
+    }
 
     if (!Array.isArray(items) || items.length === 0) return bad("Cart is empty");
 
@@ -123,19 +137,33 @@ export async function POST(request) {
       reserved.push({ product: item.product, variantId: item.variantId, quantity: item.quantity });
     }
 
+    const autoShip = method === "cod" && AUTO_SHIP_COD;
+
     const order = await Order.create({
       user: auth.id,
       items: lines.map((l) => l.item),
       shippingAddress,
-      paymentMethod,
+      paymentMethod: method,
+      // Cash on delivery is confirmed straight away. Online orders wait for payment.
+      status: autoShip ? "confirmed" : "pending",
       itemsPrice,
       discountAmount,
       discountCode: [...offerTitles].join(", "),
-      shippingPrice: netPrice >= FREE_SHIPPING_OVER ? 0 : SHIPPING_FEE,
+      shippingPrice: shippingFor(netPrice),
       taxPrice: round2(netPrice * TAX_RATE),
     });
 
-    return NextResponse.json(order, { status: 201 });
+    await syncRecords(order);
+
+    // Cash on delivery: hand the parcel to Bosta right away. If Bosta is unavailable,
+    // the order stays confirmed and you can retry with "Start shipping" in the admin.
+    if (autoShip) {
+      const result = await shipOrder(order._id).catch((e) => ({ ok: false, error: e.message }));
+      if (!result.ok) console.error("Could not create the Bosta delivery:", result.error);
+    }
+
+    const fresh = await Order.findById(order._id);
+    return NextResponse.json(fresh ?? order, { status: 201 });
   } catch (error) {
     // The order failed after stock was reserved, so give the stock back
     await rollback();
@@ -163,6 +191,7 @@ export async function GET(request) {
     Order.find(filter)
       .populate("user", "name email")
       .populate("items.product", "name price image variants")
+      .populate("shipment", "courier trackingNumber status bostaState lastError")
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)

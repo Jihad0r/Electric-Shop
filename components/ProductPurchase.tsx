@@ -1,12 +1,13 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { addToCart } from "@/lib/cart";
+import { addToCart, cartSnapshot, parseCart, subscribeCart } from "@/lib/cart";
 import { formatMoney } from "@/lib/format";
 import { CURRENCY } from "@/lib/store";
 import type { ProductDetail, ProductDetailVariant } from "@/types/product";
 
 type Selected = Record<string, string>; // option name -> chosen value
+type Message = "added" | "partial" | "max" | null;
 
 const LOW_STOCK = 5;
 const MAX_QTY = 10;
@@ -24,7 +25,7 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
     return start ? selectionsOf(start) : {};
   });
   const [quantity, setQuantity] = useState(1);
-  const [added, setAdded] = useState(false);
+  const [message, setMessage] = useState<Message>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -52,8 +53,19 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
   const stock = hasOptions ? (variant?.stock ?? 0) : product.stock;
   const label = variant ? variant.selections.map((s) => s.value).join(" / ") : "";
 
-  const maxQty = Math.max(1, Math.min(stock, MAX_QTY));
+  // How many of this exact product (and option) are already in the cart
+  const raw = useSyncExternalStore(subscribeCart, cartSnapshot, () => "[]");
+  const cartKey = `${product._id}:${variant?._id ?? ""}`;
+  const inCart = useMemo(
+    () => parseCart(raw).find((i) => i.key === cartKey)?.quantity ?? 0,
+    [raw, cartKey]
+  );
+
+  // What can still be added
+  const room = Math.max(0, stock - inCart);
+  const maxQty = Math.max(1, Math.min(room, MAX_QTY));
   const qty = Math.min(quantity, maxQty);
+  const canAdd = stock > 0 && room > 0 && (!hasOptions || Boolean(variant));
 
   // Picking a value: keep the other choices when that combination exists,
   // otherwise jump to the closest combination that does
@@ -74,7 +86,7 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
 
     setSelected(selectionsOf(best));
     setQuantity(1);
-    setAdded(false);
+    setMessage(null);
   };
 
   // Is this value available in stock together with the other current choices?
@@ -91,30 +103,39 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
     );
 
   const handleAdd = () => {
-    if (stock === 0) return;
+    if (!canAdd) return;
 
-    addToCart({
-      productId: product._id,
-      variantId: variant?._id,
-      name: product.name,
-      image: product.image,
-      label: label || undefined,
-      price,
-      quantity: qty,
-    });
+    // addToCart enforces the stock limit itself
+    const result = addToCart(
+      {
+        productId: product._id,
+        variantId: variant?._id,
+        name: product.name,
+        image: product.image,
+        label: label || undefined,
+        price,
+        quantity: qty,
+      },
+      stock
+    );
 
-    setAdded(true);
+    setMessage(
+      result.status === "added" ? "added" : result.status === "partial" ? "partial" : "max"
+    );
+    setQuantity(1);
+
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setAdded(false), 3000);
+    timer.current = setTimeout(() => setMessage(null), 4000);
   };
+
+  const buttonText =
+    stock === 0 ? "Out of stock" : room === 0 ? "Maximum in cart" : "Add to Cart";
 
   return (
     <div>
       {/* Price */}
       <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <p className="text-3xl font-bold text-gray-900">
-          {formatMoney(price, CURRENCY)}
-        </p>
+        <p className="text-3xl font-bold text-gray-900">{formatMoney(price, CURRENCY)}</p>
         {originalPrice !== undefined && (
           <p className="text-lg text-gray-400 line-through">
             {formatMoney(originalPrice, CURRENCY)}
@@ -131,7 +152,8 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
       {options.map((option) => (
         <fieldset key={option.name} className="mt-5">
           <legend className="text-sm font-medium text-gray-700">
-            {option.name}: <span className="font-semibold text-gray-900">{selected[option.name]}</span>
+            {option.name}:{" "}
+            <span className="font-semibold text-gray-900">{selected[option.name]}</span>
           </legend>
           <div className="mt-2 flex flex-wrap gap-2">
             {option.values.map((value) => {
@@ -167,6 +189,11 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
       >
         {stock === 0 ? "Out of stock" : stock <= LOW_STOCK ? `Only ${stock} left` : "In stock"}
       </p>
+      {inCart > 0 && stock > 0 && (
+        <p className="mt-1 text-sm text-gray-500">
+          {inCart} in your cart{room === 0 ? ". That's all we have." : ""}
+        </p>
+      )}
 
       {/* Quantity and add to cart */}
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
@@ -174,19 +201,19 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
           <button
             type="button"
             onClick={() => setQuantity(Math.max(1, qty - 1))}
-            disabled={stock === 0 || qty <= 1}
+            disabled={!canAdd || qty <= 1}
             aria-label="Decrease quantity"
             className="px-4 py-2.5 text-lg text-gray-700 transition hover:bg-gray-50 disabled:text-gray-300"
           >
             −
           </button>
           <span aria-live="polite" className="text-sm font-semibold text-gray-900">
-            {stock === 0 ? 0 : qty}
+            {canAdd ? qty : 0}
           </span>
           <button
             type="button"
             onClick={() => setQuantity(Math.min(maxQty, qty + 1))}
-            disabled={stock === 0 || qty >= maxQty}
+            disabled={!canAdd || qty >= maxQty}
             aria-label="Increase quantity"
             className="px-4 py-2.5 text-lg text-gray-700 transition hover:bg-gray-50 disabled:text-gray-300"
           >
@@ -197,16 +224,21 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
         <button
           type="button"
           onClick={handleAdd}
-          disabled={stock === 0}
+          disabled={!canAdd}
           className="flex-1 rounded-lg bg-brand-600 px-6 py-3 font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-gray-300"
         >
-          {stock === 0 ? "Out of stock" : "Add to Cart"}
+          {buttonText}
         </button>
       </div>
 
-      {added && (
-        <p role="status" className="mt-3 text-sm text-green-700">
-          Added to your cart.{" "}
+      {message && (
+        <p
+          role="status"
+          className={`mt-3 text-sm ${message === "added" ? "text-green-700" : "text-amber-700"}`}
+        >
+          {message === "added" && "Added to your cart. "}
+          {message === "partial" && "We added what was left in stock. "}
+          {message === "max" && "All available stock is already in your cart. "}
           <Link href="/cart" className="font-medium underline">
             View cart
           </Link>

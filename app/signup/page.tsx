@@ -70,7 +70,9 @@ export default function SignupPage() {
         body: JSON.stringify({ email: form.email, password: form.password }),
       });
 
-      router.push(loginRes.ok ? "/" : "/login");
+      const next = new URLSearchParams(window.location.search).get("next");
+      const safe = next && /^\/(?![\/\\])/.test(next) ? next : "/";
+      router.push(loginRes.ok ? safe : "/login");
       router.refresh();
     } catch {
       setError("Network error. Please try again.");

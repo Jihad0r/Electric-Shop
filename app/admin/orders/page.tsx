@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import OrderActions from "@/components/OrderActions";
 import OrderModal, { type OrderPatch } from "@/components/OrderModal";
 import { OrderStatusBadge, PaymentBadge } from "@/components/OrderBadges";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -21,8 +22,12 @@ const PAGE_SIZE = 10;
 
 const TABS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
-  ...ORDER_STATUSES.map((s) => ({ value: s as Filter, label: s.charAt(0).toUpperCase() + s.slice(1) })),
+  ...ORDER_STATUSES.map((s) => ({
+    value: s as Filter,
+    label: s.charAt(0).toUpperCase() + s.slice(1),
+  })),
 ];
+
 export default function AdminOrdersPage() {
   const router = useRouter();
   const [access, setAccess] = useState<Access>("checking");
@@ -145,7 +150,7 @@ export default function AdminOrdersPage() {
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">Orders</h1>
-        <p className="text-sm text-gray-500">Review orders and update their status</p>
+        <p className="text-sm text-gray-500">Confirm, ship and track your orders</p>
       </div>
 
       {/* Status tabs */}
@@ -219,6 +224,10 @@ export default function AdminOrdersPage() {
                   <PaymentBadge status={o.paymentStatus} />
                 </div>
 
+                <div className="mt-3">
+                  <OrderActions order={o} onUpdated={handleUpdated} />
+                </div>
+
                 <button
                   onClick={() => setSelectedId(o._id)}
                   className="mt-3 w-full rounded-lg border border-gray-300 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
@@ -275,13 +284,16 @@ export default function AdminOrdersPage() {
                     <td className="px-4 py-3">
                       <OrderStatusBadge status={o.status} />
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right">
-                      <button
-                        onClick={() => setSelectedId(o._id)}
-                        className="rounded-md px-3 py-1.5 text-sm font-medium text-blue-600 transition hover:bg-blue-50"
-                      >
-                        View
-                      </button>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <OrderActions order={o} onUpdated={handleUpdated} align="end" />
+                        <button
+                          onClick={() => setSelectedId(o._id)}
+                          className="rounded-md px-3 py-1.5 text-sm font-medium text-blue-600 transition hover:bg-blue-50"
+                        >
+                          View
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -317,14 +329,14 @@ export default function AdminOrdersPage() {
       )}
 
       {/* Details popup */}
-         {selected && (
-           <OrderModal
-             key={selected._id}
-             order={selected}
-             onClose={() => setSelectedId(null)}
-             onUpdated={handleUpdated}
-           />
-         )}
+      {selected && (
+        <OrderModal
+          key={selected._id}
+          order={selected}
+          onClose={() => setSelectedId(null)}
+          onUpdated={handleUpdated}
+        />
+      )}
     </main>
   );
 }
