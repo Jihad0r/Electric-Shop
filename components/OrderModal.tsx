@@ -2,14 +2,17 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { OrderStatusBadge, PaymentBadge } from "@/components/OrderBadges";
+import ShippingInfo from "@/components/ShippingInfo";
 import { formatDate, formatMoney } from "@/lib/format";
 import {
   PAYMENT_STATUSES,
   type Order,
+  type OrderItem,
   type OrderStatus,
   type PaymentStatus,
+  type ShipmentInfo,
 } from "@/types/order";
-   import ShippingInfo from "@/components/ShippingInfo";
+
 export type OrderPatch = {
   status: OrderStatus;
   paymentStatus: PaymentStatus;
@@ -23,11 +26,12 @@ type Props = {
   onUpdated: (id: string, patch: OrderPatch) => void;
 };
 
-// Same rules as the API: which status can follow which
+// Same rules as the API: which status can follow which.
+// Cancelling a shipped order means the parcel came back.
 const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
   pending: ["confirmed", "cancelled"],
   confirmed: ["shipped", "cancelled"],
-  shipped: ["delivered"],
+  shipped: ["delivered", "cancelled"],
   delivered: [],
   cancelled: [],
 };
@@ -41,6 +45,16 @@ const METHOD_LABELS: Record<Order["paymentMethod"], string> = {
 const selectClass =
   "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-base capitalize text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 sm:text-sm";
 const labelClass = "mb-1 block text-sm font-medium text-gray-700";
+
+// Unit price of an item: the variant's price when one was chosen
+function unitPrice(item: OrderItem): number | null {
+  if (!item.product) return null;
+  if (item.variantId) {
+    const variant = item.product.variants?.find((v) => v._id === item.variantId);
+    return variant ? variant.price : null; // null if that variant was removed later
+  }
+  return item.product.price;
+}
 
 export default function OrderModal({ order, onClose, onUpdated }: Props) {
   const [nextStatus, setNextStatus] = useState<OrderStatus | "">("");
@@ -76,12 +90,15 @@ export default function OrderModal({ order, onClose, onUpdated }: Props) {
     if (!dirty) return;
 
     if (nextStatus === "cancelled") {
+      const returned = order.status === "shipped";
       const refundNote =
         order.paymentStatus === "paid"
           ? " This order is already paid, so remember to refund it from your payment dashboard."
           : "";
       const ok = window.confirm(
-        `Cancel order ${order.orderNumber}? The stock will be returned to inventory and this cannot be undone.${refundNote}`
+        returned
+          ? `Mark ${order.orderNumber} as returned? The parcel came back, so the stock goes back to your inventory and the order is cancelled. This cannot be undone.${refundNote}`
+          : `Cancel order ${order.orderNumber}? The stock will be returned to inventory and this cannot be undone.${refundNote}`
       );
       if (!ok) return;
     }
@@ -111,8 +128,8 @@ export default function OrderModal({ order, onClose, onUpdated }: Props) {
       onUpdated(order._id, {
         status: json.status,
         paymentStatus: json.paymentStatus,
-        shipment: json.shipment ?? null,
         paidAt: json.paidAt,
+        shipment: json.shipment ?? null,
       });
       setNextStatus("");
       setPaymentStatus(json.paymentStatus);
@@ -199,34 +216,43 @@ export default function OrderModal({ order, onClose, onUpdated }: Props) {
             Items ({order.items.reduce((sum, i) => sum + i.quantity, 0)})
           </h3>
           <ul className="mt-2 divide-y divide-gray-100 rounded-xl ring-1 ring-gray-200">
-            {order.items.map((item, i) => (
-              <li key={item.product?._id ?? i} className="flex items-center gap-3 p-3">
-                {item.product?.image?.url ? (
-                  <Image
-                    src={item.product.image.url}
-                    alt={item.product.name}
-                    width={48}
-                    height={48}
-                    className="h-12 w-12 shrink-0 rounded-lg object-cover"
-                  />
-                ) : (
-                  <div className="h-12 w-12 shrink-0 rounded-lg bg-gray-100" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-gray-900">
-                    {item.product?.name ?? "Deleted product"}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {item.product ? `${money(item.product.price)} × ${item.quantity}` : `Qty ${item.quantity}`}
-                  </p>
-                </div>
-                {item.product && (
-                  <p className="shrink-0 text-sm font-medium text-gray-900">
-                    {money(item.product.price * item.quantity)}
-                  </p>
-                )}
-              </li>
-            ))}
+            {order.items.map((item, i) => {
+              const price = unitPrice(item);
+              return (
+                <li
+                  key={`${item.product?._id ?? "x"}-${item.variantId ?? i}`}
+                  className="flex items-center gap-3 p-3"
+                >
+                  {item.product?.image?.url ? (
+                    <Image
+                      src={item.product.image.url}
+                      alt={item.product.name}
+                      width={48}
+                      height={48}
+                      className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="h-12 w-12 shrink-0 rounded-lg bg-gray-100" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-900">
+                      {item.product?.name ?? "Deleted product"}
+                    </p>
+                    {item.variantLabel && (
+                      <p className="text-xs text-blue-600">{item.variantLabel}</p>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      {price !== null ? `${money(price)} × ${item.quantity}` : `Qty ${item.quantity}`}
+                    </p>
+                  </div>
+                  {price !== null && (
+                    <p className="shrink-0 text-sm font-medium text-gray-900">
+                      {money(price * item.quantity)}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </section>
 
@@ -281,9 +307,12 @@ export default function OrderModal({ order, onClose, onUpdated }: Props) {
             )}
           </div>
         </section>
-   <div className="mt-5">
-     <ShippingInfo shipment={order.shipment} admin />
-   </div>
+
+        {/* Delivery: tracking number, courier status, or the reason Bosta failed */}
+        <div className="mt-5">
+          <ShippingInfo shipment={order.shipment} admin />
+        </div>
+
         {/* Update */}
         <section className="mt-5 rounded-xl border border-gray-200 p-3 sm:p-4">
           <h3 className="text-sm font-semibold text-gray-900">Update order</h3>
@@ -306,7 +335,9 @@ export default function OrderModal({ order, onClose, onUpdated }: Props) {
                   <option value="">Keep as {order.status}</option>
                   {options.map((s) => (
                     <option key={s} value={s}>
-                      {s}
+                      {s === "cancelled" && order.status === "shipped"
+                        ? "cancelled (parcel returned)"
+                        : s}
                     </option>
                   ))}
                 </select>
@@ -345,7 +376,10 @@ export default function OrderModal({ order, onClose, onUpdated }: Props) {
             </p>
           )}
           {saved && !error && (
-            <p role="status" className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
+            <p
+              role="status"
+              className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700"
+            >
               Order updated.
             </p>
           )}

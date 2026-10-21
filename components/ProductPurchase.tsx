@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { addToCart, cartSnapshot, parseCart, subscribeCart } from "@/lib/cart";
 import { formatMoney } from "@/lib/format";
 import { CURRENCY } from "@/lib/store";
@@ -16,6 +17,7 @@ const selectionsOf = (v: ProductDetailVariant): Selected =>
   Object.fromEntries(v.selections.map((s) => [s.name, s.value]));
 
 export default function ProductPurchase({ product }: { product: ProductDetail }) {
+  const router = useRouter();
   const { options, variants } = product;
   const hasOptions = variants.length > 0;
 
@@ -65,7 +67,9 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
   const room = Math.max(0, stock - inCart);
   const maxQty = Math.max(1, Math.min(room, MAX_QTY));
   const qty = Math.min(quantity, maxQty);
-  const canAdd = stock > 0 && room > 0 && (!hasOptions || Boolean(variant));
+  const ready = stock > 0 && (!hasOptions || Boolean(variant));
+  const canAdd = ready && room > 0;
+  const canBuy = ready && (canAdd || inCart > 0);
 
   // Picking a value: keep the other choices when that combination exists,
   // otherwise jump to the closest combination that does
@@ -102,11 +106,9 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
         )
     );
 
-  const handleAdd = () => {
-    if (!canAdd) return;
-
-    // addToCart enforces the stock limit itself
-    const result = addToCart(
+  // addToCart enforces the stock limit itself
+  const putInCart = () =>
+    addToCart(
       {
         productId: product._id,
         variantId: variant?._id,
@@ -119,6 +121,10 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
       stock
     );
 
+  const handleAdd = () => {
+    if (!canAdd) return;
+
+    const result = putInCart();
     setMessage(
       result.status === "added" ? "added" : result.status === "partial" ? "partial" : "max"
     );
@@ -128,14 +134,23 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
     timer.current = setTimeout(() => setMessage(null), 4000);
   };
 
-  const buttonText =
-    stock === 0 ? "Out of stock" : room === 0 ? "Maximum in cart" : "Add to Cart";
+  // Add to the cart, then go straight to checkout
+  const handleBuyNow = () => {
+    if (!canBuy) return;
+    if (canAdd) putInCart();
+    router.push("/checkout");
+  };
+
+  const addText = stock === 0 ? "Out of stock" : room === 0 ? "Maximum in cart" : "Add to Cart";
 
   return (
     <div>
+      {/* The chosen option, under the title */}
+      {label && <p className="mt-1 text-sm text-gray-500">{label}</p>}
+
       {/* Price */}
-      <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <p className="text-3xl font-bold text-gray-900">{formatMoney(price, CURRENCY)}</p>
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <p className="text-3xl font-extrabold text-gray-900">{formatMoney(price, CURRENCY)}</p>
         {originalPrice !== undefined && (
           <p className="text-lg text-gray-400 line-through">
             {formatMoney(originalPrice, CURRENCY)}
@@ -169,7 +184,7 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
                     isSelected
                       ? "border-brand-600 bg-blue-50 text-brand-700 ring-1 ring-brand-600"
                       : available
-                        ? "border-gray-300 text-gray-800 hover:border-gray-400"
+                        ? "border-gray-300 text-gray-800 hover:border-gray-500"
                         : "border-gray-200 text-gray-400 line-through hover:border-gray-300"
                   }`}
                 >
@@ -181,33 +196,33 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
         </fieldset>
       ))}
 
-      {/* Stock */}
-      <p
-        className={`mt-5 text-sm font-medium ${
-          stock === 0 ? "text-red-600" : stock <= LOW_STOCK ? "text-amber-600" : "text-green-600"
-        }`}
-      >
-        {stock === 0 ? "Out of stock" : stock <= LOW_STOCK ? `Only ${stock} left` : "In stock"}
-      </p>
-      {inCart > 0 && stock > 0 && (
-        <p className="mt-1 text-sm text-gray-500">
-          {inCart} in your cart{room === 0 ? ". That's all we have." : ""}
+      {/* Stock and quantity */}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+        <p
+          className={`flex items-center gap-2 text-sm font-medium ${
+            stock === 0 ? "text-red-600" : stock <= LOW_STOCK ? "text-amber-600" : "text-green-600"
+          }`}
+        >
+          <span
+            aria-hidden="true"
+            className={`h-2 w-2 rounded-full ${
+              stock === 0 ? "bg-red-500" : stock <= LOW_STOCK ? "bg-amber-500" : "bg-green-500"
+            }`}
+          />
+          {stock === 0 ? "Out of stock" : stock <= LOW_STOCK ? `Only ${stock} left` : "In stock"}
         </p>
-      )}
 
-      {/* Quantity and add to cart */}
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-        <div className="flex w-full items-center justify-between rounded-lg border border-gray-300 sm:w-36">
+        <div className="flex items-center overflow-hidden rounded-lg border border-gray-300">
           <button
             type="button"
             onClick={() => setQuantity(Math.max(1, qty - 1))}
             disabled={!canAdd || qty <= 1}
             aria-label="Decrease quantity"
-            className="px-4 py-2.5 text-lg text-gray-700 transition hover:bg-gray-50 disabled:text-gray-300"
+            className="px-4 py-2 text-lg text-gray-700 transition hover:bg-gray-50 disabled:text-gray-300"
           >
             −
           </button>
-          <span aria-live="polite" className="text-sm font-semibold text-gray-900">
+          <span aria-live="polite" className="w-10 text-center text-sm font-semibold text-gray-900">
             {canAdd ? qty : 0}
           </span>
           <button
@@ -215,19 +230,52 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
             onClick={() => setQuantity(Math.min(maxQty, qty + 1))}
             disabled={!canAdd || qty >= maxQty}
             aria-label="Increase quantity"
-            className="px-4 py-2.5 text-lg text-gray-700 transition hover:bg-gray-50 disabled:text-gray-300"
+            className="px-4 py-2 text-lg text-gray-700 transition hover:bg-gray-50 disabled:text-gray-300"
           >
             +
           </button>
         </div>
+      </div>
 
+      {inCart > 0 && stock > 0 && (
+        <p className="mt-2 text-sm text-gray-500">
+          {inCart} in your cart{room === 0 ? ". That's all we have." : ""}
+        </p>
+      )}
+
+      {/* Buttons */}
+      <div className="mt-5 grid gap-3">
         <button
           type="button"
           onClick={handleAdd}
           disabled={!canAdd}
-          className="flex-1 rounded-lg bg-brand-600 px-6 py-3 font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-6 py-3.5 font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-gray-300"
         >
-          {buttonText}
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="9" cy="20" r="1.5" />
+            <circle cx="18" cy="20" r="1.5" />
+            <path d="M3 4h2.5l2.2 11h10.6L21 8H6.2" />
+          </svg>
+          {addText}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleBuyNow}
+          disabled={!canBuy}
+          className="w-full rounded-xl bg-ink-900 px-6 py-3.5 font-semibold text-white transition hover:bg-ink-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+        >
+          Buy Now
         </button>
       </div>
 

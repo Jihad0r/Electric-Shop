@@ -6,7 +6,7 @@ import { checkoutUrl, createIntention, isOnlineAvailable } from "@/lib/paymob";
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 
-mport { syncRecords } from "@/lib/fulfillment";
+import { syncRecords } from "@/lib/fulfillment";
 const bad = (error, status = 400) => NextResponse.json({ error }, { status });
 
 export async function POST(request, { params }) {

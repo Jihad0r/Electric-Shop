@@ -2,10 +2,12 @@ import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import PerkIcon from "@/components/PerkIcon";
 import ProductCard from "@/components/ProductCard";
 import ProductPurchase from "@/components/ProductPurchase";
+import ProductTabs from "@/components/ProductTabs";
 import { getProductDetail, getRelated } from "@/lib/catalog";
-import { CATEGORY_META, STORE_NAME } from "@/lib/store";
+import { CATEGORY_META, PERKS, STORE_NAME } from "@/lib/store";
 import type { Category } from "@/types/product";
 
 async function Suggestions({ category, excludeId }: { category: Category; excludeId: string }) {
@@ -63,6 +65,12 @@ async function ProductContent({ params }: { params: Promise<{ id: string }> }) {
 
   const meta = CATEGORY_META[product.category];
 
+  const details = [
+    { label: "Category", value: meta.label },
+    { label: "Availability", value: product.stock > 0 ? "In stock" : "Out of stock" },
+    ...product.options.map((o) => ({ label: o.name, value: o.values.join(", ") })),
+  ];
+
   return (
     <>
       <title>{`${product.name} | ${STORE_NAME}`}</title>
@@ -80,11 +88,10 @@ async function ProductContent({ params }: { params: Promise<{ id: string }> }) {
         <span className="text-slate-200">{product.name}</span>
       </nav>
 
-      {/* Details for this one product */}
       <div className="mt-4 overflow-hidden rounded-2xl bg-white text-gray-900 shadow-xl shadow-black/30">
         <div className="grid gap-6 p-4 sm:p-6 md:grid-cols-2 lg:gap-10 lg:p-8">
           {/* Image */}
-          <div className="relative aspect-square overflow-hidden rounded-xl bg-gray-50">
+          <div className="relative aspect-square overflow-hidden rounded-2xl bg-linear-to-br from-gray-50 to-gray-100">
             {product.image && (
               <Image
                 src={product.image}
@@ -92,31 +99,45 @@ async function ProductContent({ params }: { params: Promise<{ id: string }> }) {
                 fill
                 priority
                 sizes="(min-width: 768px) 50vw, 100vw"
-                className="object-contain p-6"
+                className="object-contain p-6 sm:p-10"
               />
             )}
           </div>
 
-          {/* Name, price, options, quantity, Add to Cart */}
+          {/* Details */}
           <div>
             <Link
               href={`/${product.category}`}
-              className="text-sm font-medium text-brand-600 hover:underline"
+              className="inline-block rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-brand-600 transition hover:bg-blue-100"
             >
               {meta.label}
             </Link>
-            <h1 className="mt-1 text-2xl font-bold text-gray-900 sm:text-3xl">{product.name}</h1>
+            <h1 className="mt-2 text-2xl font-extrabold leading-tight text-gray-900 sm:text-3xl">
+              {product.name}
+            </h1>
 
             <ProductPurchase product={product} />
+
+            {/* Trust points */}
+            <ul className="mt-6 grid gap-3 border-t border-gray-200 pt-5 sm:grid-cols-3">
+              {PERKS.slice(0, 3).map((perk) => (
+                <li key={perk.title} className="flex items-center gap-2.5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-brand-600">
+                    <PerkIcon name={perk.icon} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-xs font-semibold text-gray-900">{perk.title}</span>
+                    <span className="block text-xs text-gray-500">{perk.text}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 
-        {product.description && (
-          <section className="border-t border-gray-200 p-4 sm:p-6 lg:p-8">
-            <h2 className="font-semibold text-gray-900">Description</h2>
-            <p className="mt-3 max-w-3xl whitespace-pre-line text-gray-700">{product.description}</p>
-          </section>
-        )}
+        <section className="border-t border-gray-200 p-4 sm:p-6 lg:p-8">
+          <ProductTabs description={product.description} details={details} />
+        </section>
       </div>
 
       {/* Suggestions under the product */}
@@ -131,12 +152,13 @@ function ProductSkeleton() {
   return (
     <div aria-hidden="true" className="mt-4 rounded-2xl bg-white p-4 sm:p-6">
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="aspect-square animate-pulse rounded-xl bg-gray-100" />
+        <div className="aspect-square animate-pulse rounded-2xl bg-gray-100" />
         <div className="space-y-4">
-          <div className="h-4 w-24 animate-pulse rounded bg-gray-100" />
+          <div className="h-6 w-24 animate-pulse rounded-full bg-gray-100" />
           <div className="h-8 w-3/4 animate-pulse rounded bg-gray-100" />
           <div className="h-10 w-1/2 animate-pulse rounded bg-gray-100" />
-          <div className="h-12 w-full animate-pulse rounded bg-gray-100" />
+          <div className="h-12 w-full animate-pulse rounded-xl bg-gray-100" />
+          <div className="h-12 w-full animate-pulse rounded-xl bg-gray-100" />
         </div>
       </div>
     </div>
