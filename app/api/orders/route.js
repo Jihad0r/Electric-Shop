@@ -11,7 +11,8 @@ import { shipOrder } from "@/lib/shipOrder";
 import { getAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-   import { syncShipments } from "@/lib/syncTracking";
+import Cart from "@/models/Cart";
+import { syncShipments } from "@/lib/syncTracking";
 
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 const isId = (v) => mongoose.Types.ObjectId.isValid(v);
@@ -155,7 +156,8 @@ export async function POST(request) {
     });
 
     await syncRecords(order);
-
+        // The order now holds these items, so empty the customer's cart
+    await Cart.deleteOne({ user: auth.id }).catch((e) => console.error("Could not empty the cart:", e));
     // Cash on delivery: hand the parcel to Bosta right away. If Bosta is unavailable,
     // the order stays confirmed and you can retry with "Start shipping" in the admin.
     if (autoShip) {

@@ -7,7 +7,7 @@ import { bestOffer, getActiveOffers } from "@/lib/offers";
 import { formatMoney } from "@/lib/format";
 import { CURRENCY } from "@/lib/store";
 import type { Category, ProductDetail, ProductSummary } from "@/types/product";
-
+import { tightImage } from "@/lib/images";
 /* ---------- Types ---------- */
 
 type RawProduct = {
@@ -91,7 +91,7 @@ function toSummary(p: RawProduct, offers: OfferDoc[]): ProductSummary {
     discountPercent: priced.discountPercent,
     category: p.category,
     stock: p.stock,
-    image: p.image?.url,
+    image: tightImage(p.image?.url),
     hasOptions: (p.variants?.length ?? 0) > 0,
   };
 }
@@ -235,7 +235,7 @@ export const getProductDetail = cache(async (id: string): Promise<ProductDetail 
       name: doc.name,
       description: doc.description ?? "",
       category: doc.category,
-      image: doc.image?.url,
+        image: tightImage(doc.image?.url),
       options: (doc.options ?? []).map((o) => ({ name: o.name, values: [...o.values] })),
       variants: (doc.variants ?? []).map((v) => ({
         _id: String(v._id),

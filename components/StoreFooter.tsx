@@ -48,11 +48,6 @@ export default function StoreFooter() {
                 Create an account
               </Link>
             </li>
-            <li>
-              <Link href="/account/orders" className="transition hover:text-white">
-                My orders
-              </Link>
-            </li>
           </ul>
         </div>
       </div>

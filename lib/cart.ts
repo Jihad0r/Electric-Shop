@@ -1,128 +1,174 @@
-export type CartItem = {
+import { useEffect, useSyncExternalStore } from "react";
+
+export const MAX_LINE_QTY = 99;
+
+export type CartProblem = "unavailable" | "soldout" | "over";
+
+export type CartLine = {
   key: string; // productId:variantId
   productId: string;
   variantId?: string;
   name: string;
   image?: string;
-  label?: string; // e.g. "16GB / 512GB"
-  price: number; // for display only, the server re-checks prices at checkout
+  label?: string; // for example "16GB / 512GB"
+  unit: number; // price now, after any offer
+  original?: number;
   quantity: number;
-  stock?: number; // stock known when the item was added
+  stock: number;
+  problem?: CartProblem;
 };
 
-const STORAGE_KEY = "cart";
-export const MAX_LINE_QTY = 99;
-export const CART_EVENT = "cart:changed";
+export type CartData = {
+  lines: CartLine[];
+  itemCount: number;
+  subtotal: number;
+  savings: number;
+  shipping: number;
+  tax: number;
+  total: number;
+  hasProblem: boolean;
+};
 
-function isCartItem(value: unknown): value is CartItem {
-  if (!value || typeof value !== "object") return false;
-  const v = value as Record<string, unknown>;
-  return (
-    typeof v.key === "string" &&
-    typeof v.productId === "string" &&
-    typeof v.name === "string" &&
-    typeof v.price === "number" &&
-    typeof v.quantity === "number" &&
-    v.quantity >= 1
-  );
+export type AddStatus =
+  | "added"
+  | "partial" // only part of it fitted in stock
+  | "soldout"
+  | "max" // everything available is already in the cart
+  | "unavailable"
+  | "full"
+  | "invalid"
+  | "error";
+export type AddResult = { status: AddStatus; added: number };
+
+type State = { loaded: boolean; failed: boolean; busy: number; cart: CartData };
+
+const EMPTY_CART: CartData = {
+  lines: [],
+  itemCount: 0,
+  subtotal: 0,
+  savings: 0,
+  shipping: 0,
+  tax: 0,
+  total: 0,
+  hasProblem: false,
+};
+
+const SERVER_STATE: State = { loaded: false, failed: false, busy: 0, cart: EMPTY_CART };
+
+let state: State = SERVER_STATE;
+const listeners = new Set<() => void>();
+let counter = 0; // numbers every request
+let applied = 0; // the newest request whose answer has been used
+let started = false;
+let inflight: Promise<void> | null = null;
+
+function update(patch: Partial<State>) {
+  state = { ...state, ...patch };
+  listeners.forEach((l) => l());
 }
 
-// Turns the saved text into cart items, dropping anything that looks broken
-export function parseCart(raw: string): CartItem[] {
+// An older answer that arrives late must not overwrite a newer one
+function apply(requestNumber: number, cart: CartData) {
+  if (requestNumber < applied) return;
+  applied = requestNumber;
+  update({ loaded: true, failed: false, cart });
+}
+
+type Answer = { cart?: CartData; result?: AddResult; error?: string };
+
+async function send(method: string, body?: unknown, query = ""): Promise<{ ok: boolean; json: Answer }> {
+  const res = await fetch(`/api/cart${query}`, {
+    method,
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+    cache: "no-store",
+  });
+  const json = (await res.json().catch(() => ({}))) as Answer;
+  return { ok: res.ok, json };
+}
+
+async function change(method: string, body?: unknown, query = ""): Promise<Answer | null> {
+  const mine = ++counter;
+  update({ busy: state.busy + 1 });
   try {
-    const data: unknown = JSON.parse(raw);
-    return Array.isArray(data) ? data.filter(isCartItem) : [];
+    const { ok, json } = await send(method, body, query);
+    if (!ok) return null;
+    if (json.cart) apply(mine, json.cart);
+    return json;
   } catch {
-    return [];
+    return null;
+  } finally {
+    update({ busy: state.busy - 1 });
   }
 }
 
-export function readCart(): CartItem[] {
-  try {
-    return parseCart(localStorage.getItem(STORAGE_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
+/* ---------- Actions ---------- */
+
+export function refreshCart(): Promise<void> {
+  if (inflight) return inflight;
+
+  const mine = ++counter;
+  inflight = (async () => {
+    try {
+      const res = await fetch("/api/cart", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed");
+      apply(mine, (await res.json()) as CartData);
+    } catch {
+      update({ loaded: true, failed: true });
+    } finally {
+      inflight = null;
+    }
+  })();
+  return inflight;
 }
 
-function writeCart(items: CartItem[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  } catch {
-    // storage full or blocked: the cart just won't persist
-  }
-  window.dispatchEvent(new Event(CART_EVENT));
+export async function addToCart(item: {
+  productId: string;
+  variantId?: string;
+  quantity: number;
+}): Promise<AddResult> {
+  const answer = await change("POST", item);
+  return answer?.result ?? { status: "error", added: 0 };
 }
 
-export type AddResult =
-  | { status: "added"; added: number; inCart: number }
-  | { status: "partial"; added: number; inCart: number } // only part of it fit
-  | { status: "soldout"; added: 0; inCart: number }
-  | { status: "max"; added: 0; inCart: number }; // all available stock is already in the cart
-
-// `stock` is how many are available. The cart can never hold more than that.
-export function addToCart(item: Omit<CartItem, "key" | "stock">, stock: number): AddResult {
-  const key = `${item.productId}:${item.variantId ?? ""}`;
-  const items = readCart();
-  const existing = items.find((i) => i.key === key);
-  const inCart = existing?.quantity ?? 0;
-
-  const limit = Math.min(Math.floor(stock) || 0, MAX_LINE_QTY);
-  if (limit <= 0) return { status: "soldout", added: 0, inCart };
-
-  const room = limit - inCart;
-  if (room <= 0) return { status: "max", added: 0, inCart };
-
-  const added = Math.min(item.quantity, room);
-
-  if (existing) {
-    existing.quantity += added;
-    existing.price = item.price; // keep the latest price
-    existing.stock = limit;
-  } else {
-    items.push({ ...item, quantity: added, key, stock: limit });
-  }
-
-  writeCart(items);
-  return {
-    status: added < item.quantity ? "partial" : "added",
-    added,
-    inCart: inCart + added,
-  };
+export async function setCartQuantity(key: string, quantity: number) {
+  await change("PATCH", { key, quantity });
 }
 
-export function setQuantity(key: string, quantity: number) {
-  const q = Math.max(1, Math.min(Math.floor(quantity) || 1, MAX_LINE_QTY));
-  writeCart(readCart().map((i) => (i.key === key ? { ...i, quantity: q } : i)));
+export async function removeFromCart(key: string) {
+  await change("DELETE", undefined, `?key=${encodeURIComponent(key)}`);
 }
 
-export function removeFromCart(key: string) {
-  writeCart(readCart().filter((i) => i.key !== key));
+export async function clearCart() {
+  await change("DELETE");
 }
 
-export function clearCart() {
-  writeCart([]);
-}
-
-/* Helpers for reading the cart in components (used with useSyncExternalStore) */
+/* ---------- Reading the cart in components ---------- */
 
 export function subscribeCart(callback: () => void) {
-  window.addEventListener(CART_EVENT, callback);
-  window.addEventListener("storage", callback); // changes made in another tab
+  listeners.add(callback);
   return () => {
-    window.removeEventListener(CART_EVENT, callback);
-    window.removeEventListener("storage", callback);
+    listeners.delete(callback);
   };
 }
 
-export function cartSnapshot(): string {
-  try {
-    return localStorage.getItem(STORAGE_KEY) ?? "[]";
-  } catch {
-    return "[]";
-  }
+const getState = () => state;
+const getServerState = () => SERVER_STATE;
+
+function ensureLoaded() {
+  if (started) return;
+  started = true;
+  refreshCart();
+  // Coming back to the tab: the cart may have changed on another device
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refreshCart();
+  });
 }
 
-export function countCart(raw: string): number {
-  return parseCart(raw).reduce((sum, i) => sum + i.quantity, 0);
+export function useCart(): State {
+  const current = useSyncExternalStore(subscribeCart, getState, getServerState);
+  useEffect(() => {
+    ensureLoaded();
+  }, []);
+  return current;
 }

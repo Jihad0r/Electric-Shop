@@ -1,3 +1,5 @@
+
+import { tightImage } from "@/lib/images";
 export type HeroContent = {
   titleTop: string;
   titleAccent: string;
@@ -62,7 +64,7 @@ export function toHeroContent(doc: HeroDoc): HeroContent {
     showBadge: d.showBadge ?? DEFAULT_HERO.showBadge,
     badgeTop: d.badgeTop ?? DEFAULT_HERO.badgeTop,
     badgeMain: d.badgeMain ?? DEFAULT_HERO.badgeMain,
-    imageUrl: d.image?.url || "",
+       imageUrl: tightImage(d.image?.url, { removeWhite: process.env.HERO_REMOVE_WHITE === "on" }) ?? "",
   };
 }
 

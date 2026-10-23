@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import type { ProductSummary } from "@/types/product";
 import { addToCart } from "@/lib/cart";
-type Status = "idle" | "added" | "max";
+import type { ProductSummary } from "@/types/product";
+
+type Status = "idle" | "added" | "max" | "error";
 
 const buttonClass =
   "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500";
@@ -48,6 +49,7 @@ function CheckIcon() {
 
 export default function AddToCartButton({ product }: { product: ProductSummary }) {
   const [status, setStatus] = useState<Status>("idle");
+  const [pending, setPending] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -78,28 +80,23 @@ export default function AddToCartButton({ product }: { product: ProductSummary }
     timer.current = setTimeout(() => setStatus("idle"), 2000);
   };
 
- 
-  const handleClick = () => {
-    if (soldOut) return;
+  const handleClick = async () => {
+    if (soldOut || pending) return;
 
-    const result = addToCart(
-      {
-        productId: product._id,
-        name: product.name,
-        image: product.image,
-        price: product.price,
-        quantity: 1,
-      },
-      product.stock
-    );
+    setPending(true);
+    const result = await addToCart({ productId: product._id, quantity: 1 });
+    setPending(false);
 
-    flash(result.status === "added" || result.status === "partial" ? "added" : "max");
+    if (result.status === "added" || result.status === "partial") flash("added");
+    else if (result.status === "max" || result.status === "soldout") flash("max");
+    else flash("error");
   };
+
   const stateClass = soldOut
     ? "cursor-not-allowed border-gray-200 text-gray-300"
     : status === "added"
       ? "border-green-600 bg-green-600 text-white"
-      : status === "max"
+      : status === "max" || status === "error"
         ? "border-amber-400 text-amber-600"
         : "border-gray-300 text-gray-700 hover:border-brand-500 hover:bg-blue-50 hover:text-brand-600";
 
@@ -109,14 +106,16 @@ export default function AddToCartButton({ product }: { product: ProductSummary }
       ? `${product.name} added to cart`
       : status === "max"
         ? "All available stock is already in your cart"
-        : `Add ${product.name} to cart`;
+        : status === "error"
+          ? "Could not add it. Please try again"
+          : `Add ${product.name} to cart`;
 
   return (
     <>
       <button
         type="button"
         onClick={handleClick}
-        disabled={soldOut}
+        disabled={soldOut || pending}
         aria-label={label}
         title={soldOut ? "Sold out" : status === "max" ? "Maximum in cart" : "Add to cart"}
         className={`${buttonClass} ${stateClass}`}
@@ -124,7 +123,13 @@ export default function AddToCartButton({ product }: { product: ProductSummary }
         {status === "added" ? <CheckIcon /> : <CartIcon />}
       </button>
       <span role="status" className="sr-only">
-        {status === "added" ? "Added to cart" : status === "max" ? "Maximum already in cart" : ""}
+        {status === "added"
+          ? "Added to cart"
+          : status === "max"
+            ? "Maximum already in cart"
+            : status === "error"
+              ? "Could not add to cart"
+              : ""}
       </span>
     </>
   );

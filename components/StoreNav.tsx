@@ -204,13 +204,6 @@ export default function StoreNav() {
                     <p className="truncate text-xs text-slate-400">{user.email}</p>
                   </div>
                   <div className="pt-2">
-                    <Link
-                      href="/account/orders"
-                      onClick={() => setAccountOpen(false)}
-                      className={menuItem}
-                    >
-                      My orders
-                    </Link>
                     {user.role === "admin" && (
                       <Link href="/admin" onClick={() => setAccountOpen(false)} className={menuItem}>
                         Admin dashboard

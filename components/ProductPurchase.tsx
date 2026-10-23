@@ -1,14 +1,14 @@
 "use client";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { addToCart, cartSnapshot, parseCart, subscribeCart } from "@/lib/cart";
+import { addToCart, useCart } from "@/lib/cart";
 import { formatMoney } from "@/lib/format";
 import { CURRENCY } from "@/lib/store";
 import type { ProductDetail, ProductDetailVariant } from "@/types/product";
 
 type Selected = Record<string, string>; // option name -> chosen value
-type Message = "added" | "partial" | "max" | null;
+type Message = "added" | "partial" | "max" | "error" | null;
 
 const LOW_STOCK = 5;
 const MAX_QTY = 10;
@@ -18,6 +18,7 @@ const selectionsOf = (v: ProductDetailVariant): Selected =>
 
 export default function ProductPurchase({ product }: { product: ProductDetail }) {
   const router = useRouter();
+  const { cart } = useCart();
   const { options, variants } = product;
   const hasOptions = variants.length > 0;
 
@@ -28,6 +29,7 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
   });
   const [quantity, setQuantity] = useState(1);
   const [message, setMessage] = useState<Message>(null);
+  const [adding, setAdding] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -55,13 +57,9 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
   const stock = hasOptions ? (variant?.stock ?? 0) : product.stock;
   const label = variant ? variant.selections.map((s) => s.value).join(" / ") : "";
 
-  // How many of this exact product (and option) are already in the cart
-  const raw = useSyncExternalStore(subscribeCart, cartSnapshot, () => "[]");
+  // How many of this exact product (and option) are already in the cart, from the database
   const cartKey = `${product._id}:${variant?._id ?? ""}`;
-  const inCart = useMemo(
-    () => parseCart(raw).find((i) => i.key === cartKey)?.quantity ?? 0,
-    [raw, cartKey]
-  );
+  const inCart = cart.lines.find((l) => l.key === cartKey)?.quantity ?? 0;
 
   // What can still be added
   const room = Math.max(0, stock - inCart);
@@ -106,27 +104,24 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
         )
     );
 
-  // addToCart enforces the stock limit itself
   const putInCart = () =>
-    addToCart(
-      {
-        productId: product._id,
-        variantId: variant?._id,
-        name: product.name,
-        image: product.image,
-        label: label || undefined,
-        price,
-        quantity: qty,
-      },
-      stock
-    );
+    addToCart({ productId: product._id, variantId: variant?._id, quantity: qty });
 
-  const handleAdd = () => {
-    if (!canAdd) return;
+  const handleAdd = async () => {
+    if (!canAdd || adding) return;
 
-    const result = putInCart();
+    setAdding(true);
+    const result = await putInCart(); // the server enforces the stock limit
+    setAdding(false);
+
     setMessage(
-      result.status === "added" ? "added" : result.status === "partial" ? "partial" : "max"
+      result.status === "added"
+        ? "added"
+        : result.status === "partial"
+          ? "partial"
+          : result.status === "max" || result.status === "soldout"
+            ? "max"
+            : "error"
     );
     setQuantity(1);
 
@@ -135,9 +130,18 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
   };
 
   // Add to the cart, then go straight to checkout
-  const handleBuyNow = () => {
-    if (!canBuy) return;
-    if (canAdd) putInCart();
+  const handleBuyNow = async () => {
+    if (!canBuy || adding) return;
+
+    setAdding(true);
+    if (canAdd) {
+      const result = await putInCart();
+      if (result.status === "error" || result.status === "unavailable" || result.status === "invalid") {
+        setAdding(false);
+        setMessage("error");
+        return;
+      }
+    }
     router.push("/checkout");
   };
 
@@ -248,7 +252,7 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
         <button
           type="button"
           onClick={handleAdd}
-          disabled={!canAdd}
+          disabled={!canAdd || adding}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-6 py-3.5 font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-gray-300"
         >
           <svg
@@ -266,13 +270,13 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
             <circle cx="18" cy="20" r="1.5" />
             <path d="M3 4h2.5l2.2 11h10.6L21 8H6.2" />
           </svg>
-          {addText}
+          {adding ? "Adding..." : addText}
         </button>
 
         <button
           type="button"
           onClick={handleBuyNow}
-          disabled={!canBuy}
+          disabled={!canBuy || adding}
           className="w-full rounded-xl bg-ink-900 px-6 py-3.5 font-semibold text-white transition hover:bg-ink-700 disabled:cursor-not-allowed disabled:bg-gray-300"
         >
           Buy Now
@@ -287,6 +291,7 @@ export default function ProductPurchase({ product }: { product: ProductDetail })
           {message === "added" && "Added to your cart. "}
           {message === "partial" && "We added what was left in stock. "}
           {message === "max" && "All available stock is already in your cart. "}
+          {message === "error" && "We couldn't add it. Please try again. "}
           <Link href="/cart" className="font-medium underline">
             View cart
           </Link>
