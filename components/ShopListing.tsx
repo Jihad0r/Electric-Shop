@@ -66,14 +66,14 @@ function PriceForm({ category, filters }: { category?: Category; filters: Filter
   const hasPrice = filters.min !== undefined || filters.max !== undefined;
 
   return (
-    <form action={pathFor(category)} method="get" className="space-y-3">
+    <form action={pathFor(category)} method="get" className="space-y-3 ">
       {filters.search && <input type="hidden" name="search" value={filters.search} />}
       {filters.sort !== "newest" && <input type="hidden" name="sort" value={filters.sort} />}
 
       <div className="grid grid-cols-2 gap-2">
         <input
           name="min"
-          type="number"
+          type="text"
           min={0}
           inputMode="numeric"
           defaultValue={filters.min}
@@ -83,7 +83,7 @@ function PriceForm({ category, filters }: { category?: Category; filters: Filter
         />
         <input
           name="max"
-          type="number"
+          type="text"
           min={0}
           inputMode="numeric"
           defaultValue={filters.max}
@@ -96,7 +96,7 @@ function PriceForm({ category, filters }: { category?: Category; filters: Filter
       <div className="flex items-center gap-3">
         <button
           type="submit"
-          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-500"
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-500 ring-1 ring-white"
         >
           Apply
         </button>
@@ -204,7 +204,7 @@ export default async function ShopListing({
         {/* Sort */}
         <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
           <div className="flex items-center gap-2 whitespace-nowrap">
-            <span className="text-sm text-slate-400">Sort by:</span>
+            <span className="text-sm text-black">Sort by:</span>
             {SORTS.map((s) => (
               <Link
                 key={s.value}
@@ -221,7 +221,7 @@ export default async function ShopListing({
 
       {/* Categories on phones and tablets: a swipeable row that stays under the navbar.
           If you see a gap or overlap, adjust the two top-[...] values to match your navbar height. */}
-      <div className="sticky top-[10.25rem] z-30 -mx-4 mt-5 overflow-x-auto bg-ink-950/95 px-4 py-2 backdrop-blur md:top-[7.25rem] lg:hidden">
+      <div className="sticky top-[10.25rem] z-30 -mx-4 mt-5 overflow-x-auto bg-black px-4 py-2 backdrop-blur md:top-[7.25rem] lg:hidden">
         <div className="flex gap-2 whitespace-nowrap">
           {CATEGORY_ITEMS.map((c) => (
             <Link key={c.label} href={href(c.value, filters)} className={pill(category === c.value)}>
@@ -244,7 +244,7 @@ export default async function ShopListing({
       <div className="mt-6 grid gap-8 lg:grid-cols-[16rem_1fr]">
         {/* Sidebar (large screens): stays in view while you scroll */}
         <aside className="hidden lg:block">
-          <div className="sticky top-[7.75rem] max-h-[calc(100dvh-8.75rem)] space-y-6 overflow-y-auto rounded-xl bg-ink-900/60 p-4 ring-1 ring-white/10">
+          <div className="sticky top-[7.75rem] max-h-[calc(100dvh-8.75rem)] space-y-6 overflow-y-auto rounded-xl bg-black p-4 ring-1 ring-white/10">
             <div>
               <h2 className="text-sm font-semibold text-white">Categories</h2>
               <ul className="mt-3 space-y-1">
@@ -257,8 +257,8 @@ export default async function ShopListing({
                         aria-current={isActive ? "page" : undefined}
                         className={`block rounded-lg px-3 py-2 text-sm transition ${
                           isActive
-                            ? "bg-brand-600/20 font-medium text-white ring-1 ring-brand-500/40"
-                            : "text-slate-300 hover:bg-white/5 hover:text-white"
+                            ? "bg-brand-600/20 font-medium text-white ring-1 ring-white"
+                            : "text-slate-300 hover:bg-white hover:text-black"
                         }`}
                       >
                         {c.label}

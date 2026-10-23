@@ -5,12 +5,13 @@ import { restoreStock } from "@/lib/stock";
 import { getActiveOffers, bestOffer } from "@/lib/offers";
 import { AUTO_SHIP_COD, TAX_RATE, shippingFor } from "@/lib/shipping";
 import { expireStaleOrders } from "@/lib/expireOrders";
-import { isOnlineAvailable } from "@/lib/paymob";
+import { isOnlineAvailable } from "@/lib/stripe";
 import { syncRecords } from "@/lib/fulfillment";
 import { shipOrder } from "@/lib/shipOrder";
 import { getAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
+   import { syncShipments } from "@/lib/syncTracking";
 
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 const isId = (v) => mongoose.Types.ObjectId.isValid(v);
@@ -172,32 +173,37 @@ export async function POST(request) {
   }
 }
 
-// GET /api/orders (users see their own, admins see all)
-export async function GET(request) {
-  const auth = await getAuth();
-  if (!auth) return bad("Please log in", 401);
+ // GET /api/orders (users see their own, admins see all)
+   export async function GET(request) {
+     const auth = await getAuth();
+     if (!auth) return bad("Please log in", 401);
 
-  await connectDB();
+     await connectDB();
 
-  const { searchParams } = new URL(request.url);
-  const page = Math.max(1, Number(searchParams.get("page")) || 1);
-  const limit = Math.min(50, Number(searchParams.get("limit")) || 10);
-  const status = searchParams.get("status");
+     // The admin opening the list triggers a check of shipped parcels with Aramex
+     if (auth.role === "admin") {
+       await syncShipments().catch((e) => console.error("Could not check Aramex:", e));
+     }
 
-  const filter = auth.role === "admin" ? {} : { user: auth.id };
-  if (status) filter.status = status;
+     const { searchParams } = new URL(request.url);
+     const page = Math.max(1, Number(searchParams.get("page")) || 1);
+     const limit = Math.min(50, Number(searchParams.get("limit")) || 10);
+     const status = searchParams.get("status");
 
-  const [orders, total] = await Promise.all([
-    Order.find(filter)
-      .populate("user", "name email")
-      .populate("items.product", "name price image variants")
-      .populate("shipment", "courier trackingNumber status bostaState lastError")
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean(),
-    Order.countDocuments(filter),
-  ]);
+     const filter = auth.role === "admin" ? {} : { user: auth.id };
+     if (status) filter.status = status;
 
-  return NextResponse.json({ orders, total, page, pages: Math.ceil(total / limit) });
-}
+     const [orders, total] = await Promise.all([
+       Order.find(filter)
+         .populate("user", "name email")
+         .populate("items.product", "name price image variants")
+         .populate("shipment", "courier trackingNumber labelUrl status lastUpdateText lastUpdateAt lastError")
+         .sort({ createdAt: -1 })
+         .skip((page - 1) * limit)
+         .limit(limit)
+         .lean(),
+       Order.countDocuments(filter),
+     ]);
+
+     return NextResponse.json({ orders, total, page, pages: Math.ceil(total / limit) });
+   }

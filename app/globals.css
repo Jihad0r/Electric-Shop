@@ -1,17 +1,76 @@
 @import "tailwindcss";
 
-/* Colour palette taken from the mockup: ink = dark navy, brand = blue */
 @theme {
-  --color-ink-950: #040a1c;
-  --color-ink-900: #071130;
-  --color-ink-800: #0c1a44;
-  --color-ink-700: #13265c;
-  --color-ink-600: #1d3578;
+  /* Black scale ("ink") and accent ("brand"), now black and grey */
+  --color-ink-950: #000000;
+  --color-ink-900: #0a0a0a;
+  --color-ink-800: #171717;
+  --color-ink-700: #262626;
+  --color-ink-600: #404040;
 
-  --color-brand-400: #4f8bff;
-  --color-brand-500: #2f6bff;
-  --color-brand-600: #1f55e6;
-  --color-brand-700: #1a45bd;
+  --color-brand-400: #d4d4d4;
+  --color-brand-500: #525252;
+  --color-brand-600: #0a0a0a;
+  --color-brand-700: #000000;
+
+  /* Greys with no blue tint */
+  --color-gray-50: #fafafa;
+  --color-gray-100: #f5f5f5;
+  --color-gray-200: #e5e5e5;
+  --color-gray-300: #d4d4d4;
+  --color-gray-400: #a3a3a3;
+  --color-gray-500: #737373;
+  --color-gray-600: #525252;
+  --color-gray-700: #404040;
+  --color-gray-800: #262626;
+  --color-gray-900: #171717;
+  --color-gray-950: #0a0a0a;
+
+  /* Text greys for dark surfaces. Light pages flip them below */
+  --color-slate-50: #fafafa;
+  --color-slate-100: #f5f5f5;
+  --color-slate-200: #e5e5e5;
+  --color-slate-300: #d4d4d4;
+  --color-slate-400: #a3a3a3;
+  --color-slate-500: #737373;
+  --color-slate-600: #525252;
+  --color-slate-700: #404040;
+  --color-slate-800: #262626;
+  --color-slate-900: #171717;
+  --color-slate-950: #0a0a0a;
+
+  /* The old blue accents become black and grey */
+  --color-blue-50: #f5f5f5;
+  --color-blue-100: #e5e5e5;
+  --color-blue-200: #d4d4d4;
+  --color-blue-300: #a3a3a3;
+  --color-blue-400: #737373;
+  --color-blue-500: #525252;
+  --color-blue-600: #0a0a0a;
+  --color-blue-700: #000000;
+  --color-blue-800: #0a0a0a;
+  --color-blue-900: #000000;
+
+  /* Order status badges: kept in grey too */
+  --color-indigo-50: #e5e5e5;
+  --color-indigo-500: #262626;
+  --color-indigo-700: #0a0a0a;
+  --color-purple-50: #e5e5e5;
+  --color-purple-700: #404040;
+
+  /* Light text accents on black */
+  --color-sky-200: #ffffff;
+  --color-sky-300: #e5e5e5;
+  --color-sky-400: #d4d4d4;
+
+  /* No soft shadows: bigger ones become a hairline outline */
+  --shadow-2xs: 0 0 #0000;
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: 0 0 0 1px #0000001f;
+  --shadow-lg: 0 0 0 1px #0000001f;
+  --shadow-xl: 0 0 0 1px #0000001f;
+  --shadow-2xl: 0 0 0 1px #0000001f;
 }
 
 html {
@@ -19,9 +78,79 @@ html {
 }
 
 body {
-  background-color: #040a1c;
+  background-color: #ffffff;
+  color: #0a0a0a;
   font-family: var(--font-geist-sans, ui-sans-serif), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
+h1,
+h2,
+h3 {
+  letter-spacing: -0.02em;
+}
 
+/* ---------- White page ---------- */
+/* Anything written for the old dark page (text-white, text-slate-*, bg-white/10 ...)
+   turns into black text and grey tints inside this wrapper. */
+.theme-paper {
+  background: #ffffff;
+  color: #0a0a0a;
+
+  --color-white: #0a0a0a;
+
+  --color-slate-100: #171717;
+  --color-slate-200: #262626;
+  --color-slate-300: #404040;
+  --color-slate-400: #525252;
+  --color-slate-500: #737373;
+  --color-slate-600: #a3a3a3;
+
+  --color-ink-950: #ffffff;
+  --color-ink-900: #f7f7f7;
+  --color-ink-800: #f0f0f0;
+  --color-ink-700: #e8e8e8;
+  --color-ink-600: #d4d4d4;
+
+  --color-brand-400: #404040;
+}
+
+/* Things that are dark or white on the white page keep white text */
+.theme-paper .bg-white,
+.theme-paper .bg-brand-500,
+.theme-paper .bg-brand-600,
+.theme-paper .bg-brand-700,
+.theme-paper .bg-blue-600,
+.theme-paper .bg-blue-700,
+.theme-paper .bg-green-500 {
+  --color-white: #ffffff;
+}
+
+/* Dark buttons such as "Buy Now" */
+.theme-paper .bg-ink-900 {
+  --color-white: #ffffff;
+  --color-ink-900: #0a0a0a;
+  --color-ink-700: #262626;
+}
+
+/* ---------- Black block inside the white page (hero, offer banner) ---------- */
+.surface-dark {
+  color: #ffffff;
+
+  --color-white: #ffffff;
+
+  --color-slate-100: #f5f5f5;
+  --color-slate-200: #e5e5e5;
+  --color-slate-300: #d4d4d4;
+  --color-slate-400: #a3a3a3;
+  --color-slate-500: #737373;
+  --color-slate-600: #525252;
+
+  --color-ink-950: #000000;
+  --color-ink-900: #0a0a0a;
+  --color-ink-800: #171717;
+  --color-ink-700: #262626;
+  --color-ink-600: #404040;
+
+  --color-brand-400: #d4d4d4;
+}

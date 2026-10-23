@@ -14,12 +14,14 @@ const ShipmentSchema = new mongoose.Schema(
 
     courier: { type: String, trim: true, default: "" },
     trackingNumber: { type: String, trim: true, default: "", index: true },
+    labelUrl: { type: String, default: "" }, // printable label from Aramex
+    lastError: { type: String, default: "" }, // why creating the Aramex shipment failed
 
-    // Bosta
-    bostaId: { type: String, default: "", index: true },
-    bostaState: Number, // Bosta's own status code
-    bostaStateAt: Date,
-    lastError: { type: String, default: "" }, // why creating the Bosta delivery failed
+    // Latest tracking news from Aramex
+    lastUpdateCode: { type: String, default: "" },
+    lastUpdateText: { type: String, default: "" },
+    lastUpdateAt: Date,
+    lastSyncedAt: { type: Date, default: null },
 
     shippedAt: Date,
     deliveredAt: Date,

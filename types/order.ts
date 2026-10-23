@@ -58,7 +58,9 @@ export type OrdersResponse = {
 export type ShipmentInfo = {
   courier?: string;
   trackingNumber?: string;
+  labelUrl?: string;
   status: "pending" | "shipped" | "delivered" | "cancelled" | "returned";
-  bostaState?: number;
+  lastUpdateText?: string;
+  lastUpdateAt?: string;
   lastError?: string;
 };

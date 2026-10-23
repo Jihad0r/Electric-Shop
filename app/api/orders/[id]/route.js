@@ -3,6 +3,7 @@ import Order from "@/models/Order";
 import { restoreStock } from "@/lib/stock";
 import { setShipmentDetails, syncRecords } from "@/lib/fulfillment";
 import { shipOrder } from "@/lib/shipOrder";
+import { syncShipments } from "@/lib/syncTracking";
 import { getAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
@@ -15,7 +16,8 @@ const TRANSITIONS = {
   cancelled: [],
 };
 
-const SHIPMENT_FIELDS = "courier trackingNumber status bostaState lastError";
+const SHIPMENT_FIELDS =
+  "courier trackingNumber labelUrl status lastUpdateText lastUpdateAt lastError";
 
 async function loadOrder(id, auth) {
   if (!mongoose.Types.ObjectId.isValid(id)) return { error: "Invalid ID", status: 400 };
@@ -34,8 +36,16 @@ export async function GET(request, { params }) {
 
   const { id } = await params;
   await connectDB();
-  const { order, error, status } = await loadOrder(id, auth);
-  if (error) return NextResponse.json({ error }, { status });
+  const loaded = await loadOrder(id, auth);
+  if (loaded.error) return NextResponse.json({ error: loaded.error }, { status: loaded.status });
+
+  let order = loaded.order;
+
+  // A shipped parcel: ask Aramex for news (at most every 10 minutes per parcel)
+  if (order.status === "shipped") {
+    await syncShipments({ orderId: order._id }).catch((e) => console.error(e));
+    order = (await Order.findById(order._id)) ?? order;
+  }
 
   await order.populate([
     { path: "user", select: "name email" },
@@ -62,7 +72,7 @@ export async function PATCH(request, { params }) {
     const body = await request.json();
     const isAdmin = auth.role === "admin";
 
-    // Shipping goes through Bosta: the delivery is created first, then the order is marked shipped
+    // Shipping goes through Aramex: the shipment is created first, then the order is marked shipped
     if (body.status === "shipped" && order.status !== "shipped") {
       if (!isAdmin) {
         return NextResponse.json({ error: "Only an admin can ship an order" }, { status: 403 });

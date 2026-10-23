@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import CheckoutForm from "@/components/CheckoutForm";
-import { availableMethods } from "@/lib/paymob";
 import type { PaymentMethod } from "@/types/order";
-
+import { availableMethods } from "@/lib/stripe";
 export const metadata: Metadata = { title: "Checkout" };
 
 async function Checkout() {

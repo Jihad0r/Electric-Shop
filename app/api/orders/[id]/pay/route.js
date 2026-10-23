@@ -2,11 +2,12 @@ import { connectDB } from "@/lib/mongoose";
 import Order from "@/models/Order";
 import User from "@/models/User";
 import { getAuth } from "@/lib/auth";
-import { checkoutUrl, createIntention, isOnlineAvailable } from "@/lib/paymob";
+import { isOnlineAvailable, startCheckout } from "@/lib/stripe";
+import { applyCheckoutSession } from "@/lib/stripePayments";
+import { syncRecords } from "@/lib/fulfillment";
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 
-import { syncRecords } from "@/lib/fulfillment";
 const bad = (error, status = 400) => NextResponse.json({ error }, { status });
 
 export async function POST(request, { params }) {
@@ -27,19 +28,22 @@ export async function POST(request, { params }) {
     if (order.status !== "pending") return bad("This order can no longer be paid");
 
     const user = await User.findById(auth.id);
-    const intention = await createIntention({ order, user, attempt: Date.now() });
+    const result = await startCheckout(order, user);
 
-    order.paymob = {
-      intentionId: String(intention.id ?? ""),
-      orderId: String(intention.intention_order_id ?? ""),
-      transactionId: "",
-    };
+    // It turned out the customer had already paid on the earlier page
+    if (result.paidSession) {
+      await applyCheckoutSession(result.paidSession);
+      return bad("This order is already paid", 409);
+    }
+
+    order.stripe = { sessionId: result.session.id, paymentIntentId: "" };
     order.paymentStatus = "pending";
     await order.save();
- await syncRecords(order); 
-    return NextResponse.json({ checkoutUrl: checkoutUrl(intention.client_secret) });
+    await syncRecords(order);
+
+    return NextResponse.json({ checkoutUrl: result.url });
   } catch (error) {
-    console.error(error);
-    return bad("Could not start the payment", 500);
+    console.error("Could not start the Stripe payment:", error);
+    return bad("Could not start the payment. Please try again.", 500);
   }
 }

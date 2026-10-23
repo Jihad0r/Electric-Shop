@@ -1,4 +1,5 @@
-import { bostaStateLabel } from "@/lib/bostaStates";
+import { aramexTrackUrl } from "@/lib/aramexStates";
+import { formatDate } from "@/lib/format";
 import type { ShipmentInfo } from "@/types/order";
 
 export default function ShippingInfo({
@@ -10,14 +11,10 @@ export default function ShippingInfo({
 }) {
   if (!shipment) return null;
 
-  const { trackingNumber, courier, status, bostaState, lastError } = shipment;
+  const { trackingNumber, courier, status, labelUrl, lastUpdateText, lastUpdateAt, lastError } =
+    shipment;
   const showError = admin && Boolean(lastError) && !trackingNumber;
   if (!trackingNumber && !showError) return null;
-
-  const trackUrl = trackingNumber
-    ? `https://bosta.co/tracking-shipment/?lang=en&track_num=${encodeURIComponent(trackingNumber)}`
-    : "";
-  const stateLabel = bostaStateLabel(bostaState);
 
   return (
     <section className="rounded-xl bg-gray-50 p-3 text-sm">
@@ -28,31 +25,47 @@ export default function ShippingInfo({
           <p className="mt-1 text-gray-900">
             {courier || "Courier"} · tracking number <strong>{trackingNumber}</strong>
           </p>
-          {stateLabel && (
+
+          {lastUpdateText && (
             <p className="text-gray-600">
-              {admin ? `Bosta status: ${stateLabel}` : stateLabel}
+              {lastUpdateText}
+              {lastUpdateAt ? ` · ${formatDate(lastUpdateAt)}` : ""}
             </p>
           )}
+
           {status === "returned" && admin && (
             <p className="mt-1 font-medium text-amber-700">
-              Bosta reports this parcel as returned. Use &quot;Parcel returned&quot; to give the
+              Aramex reports this parcel as returned. Use &quot;Parcel returned&quot; to give the
               stock back.
             </p>
           )}
-          <a
-            href={trackUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-2 inline-block font-medium text-brand-600 hover:underline"
-          >
-            Track this parcel
-          </a>
+
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            <a
+              href={aramexTrackUrl(trackingNumber)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-brand-600 hover:underline"
+            >
+              Track this parcel
+            </a>
+            {admin && labelUrl && (
+              <a
+                href={labelUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-brand-600 hover:underline"
+              >
+                Print label
+              </a>
+            )}
+          </div>
         </>
       )}
 
       {showError && (
         <p role="alert" className="mt-1 text-red-700">
-          Bosta couldn&apos;t create the delivery: {lastError}. Click &quot;Start shipping&quot; to
+          Aramex couldn&apos;t create the shipment: {lastError}. Click &quot;Retry shipping&quot; to
           try again.
         </p>
       )}

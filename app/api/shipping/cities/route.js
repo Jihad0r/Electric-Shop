@@ -1,13 +1,14 @@
-import { listCities, isBostaConfigured } from "@/lib/bosta";
+import { listCities, isAramexConfigured } from "@/lib/aramex";
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  if (!isBostaConfigured()) return NextResponse.json({ cities: [] });
+  if (!isAramexConfigured()) return NextResponse.json({ cities: [] });
 
   try {
     return NextResponse.json({ cities: await listCities() });
   } catch (error) {
-    console.error("Could not load Bosta cities:", error.message);
+    // The checkout falls back to a plain text box
+    console.error("Could not load Aramex cities:", error.message);
     return NextResponse.json({ cities: [] });
   }
 }

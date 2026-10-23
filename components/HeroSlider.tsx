@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type TouchEvent } from "react
 import Image from "next/image";
 import Link from "next/link";
 import { DEFAULT_HERO_IMAGE, type HeroSlideData } from "@/lib/heroDefaults";
+
 type Fallback = { id: string; image: string };
 
 const AUTOPLAY_MS = 6000; // time each slide stays, in milliseconds
@@ -15,7 +16,7 @@ const FALLBACK_POSITIONS = [
 ];
 
 const buttonClass =
-  "mt-8 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-3 font-semibold text-white shadow-lg shadow-brand-600/30 transition hover:bg-brand-500";
+  "mt-8 inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 font-semibold text-black transition hover:bg-neutral-200";
 
 const arrowClass =
   "flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/20 transition hover:bg-white/20";
@@ -33,15 +34,13 @@ function Visual({
 
   // Sits on the top-right corner of whatever it is placed inside
   const badge = showBadge && (
-    <div className="absolute -right-2 -top-3 z-10 rounded-xl bg-brand-600 px-3 py-2 text-center leading-tight shadow-lg shadow-brand-600/40 sm:-right-4 sm:-top-4 sm:px-4 sm:py-2.5">
-      <p className="text-xs text-blue-100">{slide.badgeTop}</p>
-      <p className="text-base font-extrabold text-white sm:text-lg">{slide.badgeMain}</p>
+    <div className="absolute -right-2 -top-3 z-10 bg-white px-3 py-2 text-center leading-tight sm:-right-4 sm:-top-4 sm:px-4 sm:py-2.5">
+      <p className="text-xs text-neutral-600">{slide.badgeTop}</p>
+      <p className="text-base font-extrabold text-black sm:text-lg">{slide.badgeMain}</p>
     </div>
   );
 
-  // Your picture: no box, no frame. The wrapper is exactly as big as the image,
-  // so the badge lands on the image's own top-right corner.
-    // The slide's own image, or the default one
+  // The slide's own image, or the default one. No frame: the badge lands on the image's corner.
   const src = slide.imageUrl || DEFAULT_HERO_IMAGE;
 
   if (src) {
@@ -49,7 +48,6 @@ function Visual({
       <div className="flex justify-center">
         <div className="relative inline-block max-w-full">
           {badge}
-          {/* A plain <img> keeps its natural proportions, so the corner is always the image's corner */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
@@ -62,7 +60,7 @@ function Visual({
     );
   }
 
-  // No image uploaded: show the newest product photos
+  // No image at all: show the newest product photos
   if (fallback.length > 0) {
     return (
       <div className="relative mx-auto h-72 w-full max-w-md sm:h-96 lg:max-w-none">
@@ -71,7 +69,7 @@ function Visual({
           {fallback.map((p, i) => (
             <div
               key={p.id}
-              className={`absolute ${FALLBACK_POSITIONS[i]} aspect-square overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/15 backdrop-blur`}
+              className={`absolute ${FALLBACK_POSITIONS[i]} aspect-square overflow-hidden bg-white ring-1 ring-white/15`}
             >
               <Image src={p.image} alt="" fill sizes="260px" className="object-contain p-3" />
             </div>
@@ -89,7 +87,7 @@ export default function HeroSlider({
   fallback,
 }: {
   slides: HeroSlideData[];
-  fallback: Fallback[]; // newest product photos, used by slides that have no image
+  fallback: Fallback[]; // newest product photos, used when there is no image
 }) {
   const count = slides.length;
   const [index, setIndex] = useState(0);
@@ -129,7 +127,7 @@ export default function HeroSlider({
 
   return (
     <section
-      className="relative overflow-hidden"
+      className="surface-dark relative overflow-hidden"
       role="region"
       aria-roledescription="carousel"
       aria-label="Featured offers"
@@ -141,7 +139,7 @@ export default function HeroSlider({
       onTouchEnd={onTouchEnd}
     >
       <div
-        className="absolute inset-0 bg-linear-to-r from-ink-950 via-ink-900 to-brand-700"
+        className="absolute inset-0 bg-black pointer-events-none bg-[radial-gradient(circle,rgba(255,255,255,0.6)_1px,transparent_1px)] bg-size-[30px_30px] mask-[radial-gradient(ellipse_at_center,black_20%)] "
         aria-hidden="true"
       />
 
@@ -175,7 +173,7 @@ export default function HeroSlider({
                   </Heading>
 
                   {slide.text && (
-                    <p className="mt-5 max-w-lg text-base text-slate-100 sm:text-lg">{slide.text}</p>
+                    <p className="mt-5 max-w-lg text-base text-slate-200 sm:text-lg">{slide.text}</p>
                   )}
 
                   {hasButton &&

@@ -63,6 +63,9 @@ const OrderSchema = new mongoose.Schema(
       intentionId: { type: String, default: "" },
       orderId: { type: String, default: "" },
       transactionId: { type: String, default: "" },
+    },    stripe: {
+      sessionId: { type: String, default: "" },
+      paymentIntentId: { type: String, default: "" },
     },
         payment: { type: mongoose.Schema.Types.ObjectId, ref: "Payment" },
     shipment: { type: mongoose.Schema.Types.ObjectId, ref: "Shipment" },

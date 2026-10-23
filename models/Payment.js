@@ -5,8 +5,8 @@ const PaymentSchema = new mongoose.Schema(
     order: { type: mongoose.Schema.Types.ObjectId, ref: "Order", required: true, unique: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
 
-    method: { type: String, enum: ["cod", "card", "wallet"], required: true },
-    provider: { type: String, enum: ["cash", "paymob"], required: true },
+    method: { type: String, enum: ["cod", "card", "wallet"], required: true },   
+     provider: { type: String, enum: ["cash", "paymob", "stripe"], required: true },
 
     amount: { type: Number, required: true, min: 0 },
     currency: { type: String, default: "EGP" },

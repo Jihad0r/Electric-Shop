@@ -46,7 +46,22 @@ export default function OrderConfirmation({ orderId }: { orderId: string }) {
       }
     };
 
-    load();
+        // Back from Stripe: ask the server to confirm the payment before showing the result
+    const sessionId = new URLSearchParams(window.location.search).get("session_id");
+    (async () => {
+      if (sessionId) {
+        try {
+          await fetch(`/api/orders/${orderId}/verify-payment`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }),
+          });
+        } catch {
+          // the page still loads. The webhook may confirm it a moment later
+        }
+      }
+      if (!cancelled) load();
+    })();
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);

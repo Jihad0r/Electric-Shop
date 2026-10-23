@@ -35,9 +35,9 @@ const STEPS = ["Address", "Payment", "Review"] as const;
 
 const METHOD_INFO: Record<PaymentMethod, { title: string; text: string }> = {
   cod: { title: "Cash on delivery", text: "Pay in cash when your order arrives." },
-  card: {
+    card: {
     title: "Credit or debit card",
-    text: "Pay securely online. You'll go to our payment partner's page to enter your card.",
+    text: "Pay securely online. You'll go to Stripe's secure page to enter your card.",
   },
   wallet: { title: "Mobile wallet", text: "Pay online with your mobile wallet." },
 };
