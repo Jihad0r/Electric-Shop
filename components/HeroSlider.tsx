@@ -139,7 +139,7 @@ export default function HeroSlider({
       onTouchEnd={onTouchEnd}
     >
       <div
-        className="absolute inset-0 bg-black pointer-events-none bg-[radial-gradient(circle,rgba(255,255,255,0.6)_1px,transparent_1px)] bg-size-[30px_30px] mask-[radial-gradient(ellipse_at_center,black_20%)] "
+        className="absolute inset-0 bg-black pointer-events-none "
         aria-hidden="true"
       />
 
