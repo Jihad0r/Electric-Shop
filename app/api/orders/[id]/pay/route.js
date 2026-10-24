@@ -11,9 +11,12 @@ import mongoose from "mongoose";
 const bad = (error, status = 400) => NextResponse.json({ error }, { status });
 
 export async function POST(request, { params }) {
+  let isAdmin = false;
+
   try {
     const auth = await getAuth();
     if (!auth) return bad("Please log in", 401);
+    isAdmin = auth.role === "admin";
 
     const { id } = await params;
     if (!mongoose.Types.ObjectId.isValid(id)) return bad("Invalid ID");
@@ -45,8 +48,9 @@ export async function POST(request, { params }) {
   } catch (error) {
     console.error("Could not start the Stripe payment:", error);
 
-    // While developing, show the real reason. On a live site customers only see the short message.
-    const detail = process.env.NODE_ENV !== "production" ? ` (${error.message})` : "";
+    // You (an admin) and local development see the real reason. Customers only see the short message.
+    const showDetail = isAdmin || process.env.NODE_ENV !== "production";
+    const detail = showDetail ? ` (${error.message})` : "";
     return bad(`Could not start the payment. Please try again.${detail}`, 500);
   }
 }

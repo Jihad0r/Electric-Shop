@@ -64,7 +64,7 @@ async function OfferRows() {
           <section className="mx-auto max-w-7xl px-4 pt-12 sm:px-6 lg:px-8">
             <div className="flex flex-wrap items-center gap-3">
               <h2 className="text-xl font-bold text-white sm:text-2xl">{row.title}</h2>
-              <span className="bg-black px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-white">
+              <span className="bg-black  px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-[#ffff]">
                 {row.label}
               </span>
             </div>

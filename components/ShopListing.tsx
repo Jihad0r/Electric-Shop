@@ -96,7 +96,7 @@ function PriceForm({ category, filters }: { category?: Category; filters: Filter
       <div className="flex items-center gap-3">
         <button
           type="submit"
-          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-500 ring-1 ring-white"
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-white hover:text-black ring-1 ring-white"
         >
           Apply
         </button>
@@ -174,7 +174,7 @@ export default async function ShopListing({
       <title>{`${title} | ${STORE_NAME}`}</title>
 
       {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="text-sm text-slate-400">
+      <nav aria-label="Breadcrumb" className="text-sm text-black">
         <Link href="/" className="transition hover:text-white">
           Home
         </Link>
@@ -255,10 +255,10 @@ export default async function ShopListing({
                       <Link
                         href={href(c.value, filters)}
                         aria-current={isActive ? "page" : undefined}
-                        className={`block rounded-lg px-3 py-2 text-sm transition ${
+                        className={`block rounded-lg px-3 py-2 text-sm transition  hover:bg-[#ffff] hover:text-black hover:ring-white ${
                           isActive
-                            ? "bg-brand-600/20 font-medium text-white ring-1 ring-white"
-                            : "text-slate-300 hover:bg-white hover:text-black"
+                            ? "bg-white font-medium text-black  ring-2 ring-brand-500/40"
+                            : "text-[#ffff]  "
                         }`}
                       >
                         {c.label}
