@@ -154,3 +154,82 @@ h3 {
 
   --color-brand-400: #d4d4d4;
 }
+/* ---------- Motion ---------- */
+:root {
+  --enter-duration: 0.7s; /* how long each entrance takes */
+  --enter-step: 90ms; /* the pause between one item and the next in a group */
+}
+
+@keyframes enter-up {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes enter-down {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes enter-left {
+  from { opacity: 0; transform: translateX(-40px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes enter-right {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes enter-scale {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes pop {
+  0% { transform: scale(0.6); }
+  60% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+/* Plays when the element first appears. "up" is the default direction. */
+.enter {
+  animation-name: enter-up;
+  animation-duration: var(--enter-duration);
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: both;
+  animation-delay: calc(var(--i, 0) * var(--enter-step));
+}
+.enter-down { animation-name: enter-down; }
+.enter-left { animation-name: enter-left; }
+.enter-right { animation-name: enter-right; }
+.enter-scale { animation-name: enter-scale; }
+
+.float { animation: float 7s ease-in-out infinite; }
+.pop { animation: pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* Used by <Reveal>: hidden until scrolled into view */
+[data-reveal] {
+  transition:
+    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+[data-reveal="hidden"] { opacity: 0; }
+[data-reveal="hidden"][data-variant="up"] { transform: translateY(36px); }
+[data-reveal="hidden"][data-variant="left"] { transform: translateX(-48px); }
+[data-reveal="hidden"][data-variant="right"] { transform: translateX(48px); }
+[data-reveal="hidden"][data-variant="scale"] { transform: scale(0.94); }
+[data-reveal="shown"] { opacity: 1; transform: none; }
+
+/* People who asked their device for less motion get none */
+@media (prefers-reduced-motion: reduce) {
+  .enter,
+  .float,
+  .pop {
+    animation: none !important;
+  }
+  [data-reveal] {
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

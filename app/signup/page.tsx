@@ -2,10 +2,12 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { refreshCart } from "@/lib/cart";
 
 type SignupForm = {
   name: string;
   email: string;
+  phone: string;
   password: string;
   confirm: string;
 };
@@ -13,6 +15,8 @@ type SignupForm = {
 type ApiResponse = {
   error?: string;
 };
+
+const PHONE = /^\+?[\d\s\-()]{8,20}$/;
 
 const inputClass =
   "w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200";
@@ -22,6 +26,7 @@ export default function SignupPage() {
   const [form, setForm] = useState<SignupForm>({
     name: "",
     email: "",
+    phone: "",
     password: "",
     confirm: "",
   });
@@ -36,6 +41,9 @@ export default function SignupPage() {
     setError("");
 
     // Check on the client first, to give instant feedback
+    if (!PHONE.test(form.phone.trim())) {
+      return setError("Enter a valid phone number");
+    }
     if (form.password.length < 6) {
       return setError("Password must be at least 6 characters");
     }
@@ -53,6 +61,7 @@ export default function SignupPage() {
         body: JSON.stringify({
           name: form.name,
           email: form.email,
+          phone: form.phone.trim(),
           password: form.password,
         }),
       });
@@ -70,6 +79,9 @@ export default function SignupPage() {
         body: JSON.stringify({ email: form.email, password: form.password }),
       });
 
+      // 3. Load the cart again: anything added before signing up joins the new account
+      if (loginRes.ok) await refreshCart();
+
       const next = new URLSearchParams(window.location.search).get("next");
       const safe = next && /^\/(?![\/\\])/.test(next) ? next : "/";
       router.push(loginRes.ok ? safe : "/login");
@@ -82,8 +94,8 @@ export default function SignupPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-ink-950 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
+    <main className="flex min-h-screen items-center justify-center bg-neutral-100 px-4">
+      <div className="enter enter-scale w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
         <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
         <p className="mt-1 text-sm text-gray-500">It only takes a minute</p>
 
@@ -121,6 +133,25 @@ export default function SignupPage() {
               placeholder="you@example.com"
               className={inputClass}
             />
+          </div>
+
+          <div>
+            <label htmlFor="phone" className="mb-1 block text-sm font-medium text-gray-700">
+              Phone number
+            </label>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              required
+              value={form.phone}
+              onChange={handleChange}
+              placeholder="01000000000"
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-gray-500">Used by the courier to reach you for delivery.</p>
           </div>
 
           <div>

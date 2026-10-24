@@ -44,6 +44,9 @@ export async function POST(request, { params }) {
     return NextResponse.json({ checkoutUrl: result.url });
   } catch (error) {
     console.error("Could not start the Stripe payment:", error);
-    return bad("Could not start the payment. Please try again.", 500);
+
+    // While developing, show the real reason. On a live site customers only see the short message.
+    const detail = process.env.NODE_ENV !== "production" ? ` (${error.message})` : "";
+    return bad(`Could not start the payment. Please try again.${detail}`, 500);
   }
 }

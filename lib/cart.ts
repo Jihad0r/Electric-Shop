@@ -60,14 +60,15 @@ const listeners = new Set<() => void>();
 let counter = 0; // numbers every request
 let applied = 0; // the newest request whose answer has been used
 let started = false;
-let inflight: Promise<void> | null = null;
+let lastStart = 0;
+let lastRefresh: Promise<void> | null = null;
 
 function update(patch: Partial<State>) {
   state = { ...state, ...patch };
   listeners.forEach((l) => l());
 }
 
-// An older answer that arrives late must not overwrite a newer one
+// An older answer that arrives late must never overwrite a newer one
 function apply(requestNumber: number, cart: CartData) {
   if (requestNumber < applied) return;
   applied = requestNumber;
@@ -104,22 +105,25 @@ async function change(method: string, body?: unknown, query = ""): Promise<Answe
 
 /* ---------- Actions ---------- */
 
+// Loads the cart again. Call it after logging in or out, so the right cart shows.
+// Two calls within a quarter of a second share one request. Anything later starts a new one.
 export function refreshCart(): Promise<void> {
-  if (inflight) return inflight;
+  const now = Date.now();
+  if (lastRefresh && now - lastStart < 250) return lastRefresh;
 
-  const mine = ++counter;
-  inflight = (async () => {
+  lastStart = now;
+  lastRefresh = (async () => {
+    const mine = ++counter;
     try {
       const res = await fetch("/api/cart", { cache: "no-store" });
       if (!res.ok) throw new Error("Failed");
       apply(mine, (await res.json()) as CartData);
     } catch {
-      update({ loaded: true, failed: true });
-    } finally {
-      inflight = null;
+      if (mine > applied) update({ loaded: true, failed: true });
     }
   })();
-  return inflight;
+
+  return lastRefresh;
 }
 
 export async function addToCart(item: {
@@ -158,10 +162,21 @@ const getServerState = () => SERVER_STATE;
 function ensureLoaded() {
   if (started) return;
   started = true;
+
   refreshCart();
-  // Coming back to the tab: the cart may have changed on another device
+
+  // Keep the cart fresh: coming back to the tab, restoring a page, reconnecting
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") refreshCart();
+  });
+  window.addEventListener("focus", () => {
+    refreshCart();
+  });
+  window.addEventListener("online", () => {
+    refreshCart();
+  });
+  window.addEventListener("pageshow", (e) => {
+    if ((e as PageTransitionEvent).persisted) refreshCart();
   });
 }
 

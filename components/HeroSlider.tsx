@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type TouchEvent } from "react
 import Image from "next/image";
 import Link from "next/link";
 import { DEFAULT_HERO_IMAGE, type HeroSlideData } from "@/lib/heroDefaults";
+import { stagger } from "@/lib/motion";
 
 type Fallback = { id: string; image: string };
 
@@ -25,16 +26,23 @@ function Visual({
   slide,
   fallback,
   priority,
+  active,
 }: {
   slide: HeroSlideData;
   fallback: Fallback[];
   priority: boolean;
+  active: boolean;
 }) {
   const showBadge = slide.showBadge && Boolean(slide.badgeTop || slide.badgeMain);
 
-  // Sits on the top-right corner of whatever it is placed inside
+  // Pops in last, on the top-right corner of the image
   const badge = showBadge && (
-    <div className="absolute -right-2 -top-3 z-10 bg-white px-3 py-2 text-center leading-tight sm:-right-4 sm:-top-4 sm:px-4 sm:py-2.5">
+    <div
+      className={`absolute -right-2 -top-3 z-10 bg-white px-3 py-2 text-center leading-tight sm:-right-4 sm:-top-4 sm:px-4 sm:py-2.5 ${
+        active ? "enter enter-scale" : ""
+      }`}
+      style={stagger(5)}
+    >
       <p className="text-xs text-neutral-600">{slide.badgeTop}</p>
       <p className="text-base font-extrabold text-black sm:text-lg">{slide.badgeMain}</p>
     </div>
@@ -46,15 +54,18 @@ function Visual({
   if (src) {
     return (
       <div className="flex justify-center">
-        <div className="relative inline-block max-w-full">
-          {badge}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt=""
-            fetchPriority={priority ? "high" : undefined}
-            className="block h-auto max-h-72 w-auto max-w-full object-contain drop-shadow-2xl sm:max-h-96 lg:max-h-[28rem]"
-          />
+        {/* The outer layer slides in once. The inner layer floats gently forever. */}
+        <div className={active ? "enter enter-right" : ""} style={stagger(1)}>
+          <div className={`relative inline-block max-w-full ${active ? "float" : ""}`}>
+            {badge}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={src}
+              alt=""
+              fetchPriority={priority ? "high" : undefined}
+              className="block h-auto max-h-72 w-auto max-w-full object-contain drop-shadow-2xl sm:max-h-96 lg:max-h-[28rem]"
+            />
+          </div>
         </div>
       </div>
     );
@@ -63,7 +74,12 @@ function Visual({
   // No image at all: show the newest product photos
   if (fallback.length > 0) {
     return (
-      <div className="relative mx-auto h-72 w-full max-w-md sm:h-96 lg:max-w-none">
+      <div
+        className={`relative mx-auto h-72 w-full max-w-md sm:h-96 lg:max-w-none ${
+          active ? "enter enter-right" : ""
+        }`}
+        style={stagger(1)}
+      >
         {badge}
         <div className="absolute inset-0" aria-hidden="true">
           {fallback.map((p, i) => (
@@ -139,7 +155,7 @@ export default function HeroSlider({
       onTouchEnd={onTouchEnd}
     >
       <div
-        className="absolute inset-0 bg-black pointer-events-none "
+        className="absolute inset-0 bg-black"
         aria-hidden="true"
       />
 
@@ -151,6 +167,7 @@ export default function HeroSlider({
             const Heading = i === 0 ? "h1" : "h2"; // one h1 per page
             const hasButton = Boolean(slide.buttonText && slide.buttonHref);
             const isExternal = /^https?:\/\//i.test(slide.buttonHref);
+            const buttonClasses = `${buttonClass} ${active ? "enter" : ""}`;
 
             return (
               <div
@@ -164,7 +181,12 @@ export default function HeroSlider({
                 }`}
               >
                 <div>
-                  <Heading className="text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-6xl">
+                  <Heading
+                    className={`text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-6xl ${
+                      active ? "enter" : ""
+                    }`}
+                    style={stagger(0)}
+                  >
                     {slide.titleTop}
                     {slide.titleTop && slide.titleAccent && <br />}
                     <span className="bg-linear-to-r from-sky-200 to-sky-400 bg-clip-text text-transparent">
@@ -173,22 +195,29 @@ export default function HeroSlider({
                   </Heading>
 
                   {slide.text && (
-                    <p className="mt-5 max-w-lg text-base text-slate-200 sm:text-lg">{slide.text}</p>
+                    <p
+                      className={`mt-5 max-w-lg text-base text-slate-200 sm:text-lg ${
+                        active ? "enter" : ""
+                      }`}
+                      style={stagger(2)}
+                    >
+                      {slide.text}
+                    </p>
                   )}
 
                   {hasButton &&
                     (isExternal ? (
-                      <a href={slide.buttonHref} className={buttonClass}>
+                      <a href={slide.buttonHref} className={buttonClasses} style={stagger(3)}>
                         {slide.buttonText} <span aria-hidden="true">&rarr;</span>
                       </a>
                     ) : (
-                      <Link href={slide.buttonHref} className={buttonClass}>
+                      <Link href={slide.buttonHref} className={buttonClasses} style={stagger(3)}>
                         {slide.buttonText} <span aria-hidden="true">&rarr;</span>
                       </Link>
                     ))}
                 </div>
 
-                <Visual slide={slide} fallback={fallback} priority={i === 0} />
+                <Visual slide={slide} fallback={fallback} priority={i === 0} active={active} />
               </div>
             );
           })}

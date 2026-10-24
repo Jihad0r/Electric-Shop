@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import ProductCard from "@/components/ProductCard";
+import { stagger } from "@/lib/motion";
 import type { ProductSummary } from "@/types/product";
 
 export type ShopQueryParams = {
@@ -73,8 +74,9 @@ export default function ShopProducts({ initialProducts, initialTotal, initialPag
   return (
     <>
       <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
-        {items.map((p) => (
-          <li key={p._id}>
+        {items.map((p, i) => (
+          // Each product rises in a moment after the one before it. A new batch starts fresh.
+          <li key={p._id} className="enter" style={stagger(i % 12, 6)}>
             <ProductCard product={p} />
           </li>
         ))}
@@ -98,7 +100,7 @@ export default function ShopProducts({ initialProducts, initialTotal, initialPag
             disabled={loading}
             className="rounded-lg bg-brand-600 px-8 py-3 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Loading..." : "Load more"}
+            {loading ? "Loading..." : `Load more${remaining > 0 ? ` (${remaining} more)` : ""}`}
           </button>
         )}
       </div>

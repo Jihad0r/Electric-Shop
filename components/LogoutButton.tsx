@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { refreshCart } from "@/lib/cart";
 
 type Props = {
   className?: string;
@@ -26,6 +27,7 @@ export default function LogoutButton({
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
       // Redirect even if the request failed, so the user isn't stuck on a protected page
+      await refreshCart(); // the cart is now the visitor's, not the account's
       onLoggedOut?.();
       router.replace(redirectTo);
       router.refresh();

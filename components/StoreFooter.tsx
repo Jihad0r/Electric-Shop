@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
+import Reveal from "@/components/Reveal";
 import { CATEGORY_META, STORE_NAME } from "@/lib/store";
 import { CATEGORIES } from "@/types/product";
 
@@ -7,7 +8,7 @@ export default function StoreFooter() {
   return (
     <footer className="border-t border-white/10 bg-ink-950">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:grid-cols-3 sm:px-6 lg:px-8">
-        <div>
+        <Reveal>
           <div className="flex items-center gap-2">
             <Logo className="h-6 w-6 text-white" />
             <span className="text-lg font-bold text-white">{STORE_NAME}</span>
@@ -15,9 +16,9 @@ export default function StoreFooter() {
           <p className="mt-3 max-w-xs text-sm text-slate-400">
             Phones, laptops, tablets and accessories, all in one place.
           </p>
-        </div>
+        </Reveal>
 
-        <div>
+        <Reveal delay={100}>
           <p className="text-xs font-semibold uppercase tracking-widest text-white">Shop</p>
           <ul className="mt-4 space-y-2 text-sm text-slate-400">
             <li>
@@ -33,9 +34,9 @@ export default function StoreFooter() {
               </li>
             ))}
           </ul>
-        </div>
+        </Reveal>
 
-        <div>
+        <Reveal delay={200}>
           <p className="text-xs font-semibold uppercase tracking-widest text-white">Account</p>
           <ul className="mt-4 space-y-2 text-sm text-slate-400">
             <li>
@@ -48,8 +49,13 @@ export default function StoreFooter() {
                 Create an account
               </Link>
             </li>
+            <li>
+              <Link href="/account/orders" className="transition hover:text-white">
+                My orders
+              </Link>
+            </li>
           </ul>
-        </div>
+        </Reveal>
       </div>
 
       <div className="border-t border-white/10 px-4 py-4 text-center text-xs text-slate-500">

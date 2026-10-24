@@ -2,6 +2,7 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { refreshCart } from "@/lib/cart";
 
 type LoginForm = {
   email: string;
@@ -42,6 +43,10 @@ export default function LoginPage() {
         return;
       }
 
+      // The server joins the visitor's cart to the account cart on the next request.
+      // Wait for it, so the cart is already right when the next page opens.
+      await refreshCart();
+
       const next = new URLSearchParams(window.location.search).get("next");
       router.push(next && /^\/(?![\/\\])/.test(next) ? next : "/");
       router.refresh(); // so server components see the new cookie
@@ -53,8 +58,8 @@ export default function LoginPage() {
   };
 
   return (
-      <main className="flex min-h-screen items-center justify-center bg-ink-950 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
+    <main className="flex min-h-screen items-center justify-center bg-neutral-100 px-4">
+      <div className="enter enter-scale w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
         <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
         <p className="mt-1 text-sm text-gray-500">Log in to your account</p>
 
